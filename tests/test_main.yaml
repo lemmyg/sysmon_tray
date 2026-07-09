@@ -1,0 +1,13 @@
+main:
+  - name: default_refresh
+    argv:
+      - sysmon_tray
+    refresh_seconds: 5.0
+    expected_exit: 0
+  - name: custom_refresh
+    argv:
+      - sysmon_tray
+      - --refresh-seconds
+      - "2.0"
+    refresh_seconds: 2.0
+    expected_exit: 0

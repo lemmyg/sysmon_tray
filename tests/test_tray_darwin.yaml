@@ -1,0 +1,25 @@
+format_refresh_interval_label:
+  - name: selected_whole_seconds
+    seconds: 2.0
+    selected: true
+    expected: "2s *"
+  - name: unselected_whole_seconds
+    seconds: 5.0
+    selected: false
+    expected: "5s"
+  - name: fractional_seconds
+    seconds: 2.5
+    selected: false
+    expected: "2.5s"
+  - name: half_second_label
+    seconds: 0.5
+    selected: true
+    expected: "0.5s *"
+
+seconds_to_milliseconds:
+  - name: two_seconds
+    seconds: 2.0
+    expected: 2000
+  - name: half_second
+    seconds: 0.5
+    expected: 500

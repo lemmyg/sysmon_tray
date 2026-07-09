@@ -1,0 +1,64 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# AI Rules
+- before start working, tell me which model are you
+- Keep it simple.
+- Make the smallest changes possible.
+- Write code always in english.
+- Use snake_case format.
+- Each function must have a unit test.
+- Unit tests go in the `tests` folder and use `.yaml` files as input for validation.
+- Mirror package modules under `tests/`. Example: `sensors.py` tests live in `tests/test_sensors.py`.
+- Unit test structure:
+  - `test_<module_name>.py`
+  - `test_<module_name>.yaml`
+- Install requirements into `.venv` only: `pip install -r requirements.txt` with the venv activated, or `uv pip install -r requirements.txt --python .venv/bin/python` from the repo root.
+- Use relative imports inside the package.
+- After activation, `python` and `python3` both point at `.venv`; do not use distro `/usr/bin/python3` for project work.
+- Default test runner from the parent git folder:
+  ```bash
+  export PYTHONPATH="/Users/galder/git:$PYTHONPATH"
+  sysmon_tray/.venv/bin/python -m unittest sysmon_tray.tests.test_sensors -v
+  ```
+- Do not use icons in logs.
+
+- Write function with docs:
+  Example:
+  """Estimate rebalance trading days from the NYSE market calendar.
+    Kwargs:
+        start_date (date): Lower bound date for the rebalance window.
+        end_date (date): Upper bound date used to anchor current/future calculations.
+        rebalance_frequency (int): Rebalance interval in trading sessions.
+        return_future_rebalance (bool): If True, return the next rebalance day after
+            end_date. If False, return the latest trading day on or before
+            end_date.
+        return_rebalance_days_backwards (bool): If True, return a list of rebalance
+            days stepping backwards from end_date toward start_date using
+            rebalance_frequency.
+        buffer_days (int): Optional extra calendar days added after end_date when
+            building the market schedule, used to ensure future sessions exist.
+
+    Returns:
+        date (list[date]): A single date for current/future mode, or a list of
+            dates in descending order when backward mode is enabled.
+  """
+
+# Environment Setup
+- **Project-local uv + Python (git-ignored `.local/`)**: one-time from repo root, install **uv** into `.local` and keep downloaded **CPython** there (not `~/.local`):
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$PWD/.local" sh
+  export PATH="$PWD/.local:$PATH"
+  export UV_PYTHON_INSTALL_DIR="$PWD/.local/share/uv/python"
+  uv venv --python 3.12
+  uv pip install -r requirements.txt
+  ```
+- **PYTHONPATH**: The package folder name is `sysmon_tray`; run from the parent `git` directory:
+
+  ```bash
+  source .venv/bin/activate
+  export PYTHONPATH="/Users/galder/git:$PYTHONPATH"
+  ```
+

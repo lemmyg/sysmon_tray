@@ -1,0 +1,103 @@
+format_tray_label:
+  - name: dual_fans
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 39.8
+      cpu_util_pct: 12.4
+      gpu_util_pct: 36.2
+      fan_rpms: [1351, 1455]
+      error: null
+    expected: "12% | 41C | 36% | 40C | 1351+ | 1455+"
+  - name: with_fans_and_power
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 39.8
+      cpu_util_pct: 12.4
+      gpu_util_pct: 36.2
+      fan_rpms: [1351, 1455]
+      system_power_w: 13.9
+      external_connected: true
+      error: null
+    expected: "12% | 41C | 36% | 40C | 14W | 0W | 1351+ | 1455+"
+  - name: with_system_power
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 39.8
+      cpu_util_pct: 12.4
+      gpu_util_pct: 36.2
+      fan_rpms: []
+      system_power_w: 13.9
+      external_connected: true
+      error: null
+    expected: "12% | 41C | 36% | 40C | 14W | 0W"
+  - name: with_battery_power
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 39.8
+      cpu_util_pct: 12.4
+      gpu_util_pct: 36.2
+      fan_rpms: []
+      system_power_w: 13.9
+      battery_power_w: 8.4
+      external_connected: false
+      error: null
+    expected: "12% | 41C | 36% | 40C | 14W | 8W"
+  - name: fanless
+    snapshot:
+      cpu_celsius: 35.0
+      gpu_celsius: null
+      cpu_util_pct: null
+      gpu_util_pct: null
+      fan_rpms: []
+      error: null
+    expected: "-- | 35C | -- | --"
+
+format_tooltip:
+  - name: full_snapshot
+    snapshot:
+      cpu_celsius: 42.5
+      gpu_celsius: 39.0
+      cpu_util_pct: 8.0
+      gpu_util_pct: 22.0
+      fan_rpms: [1346, 1456]
+      system_power_w: 13.9
+      battery_power_w: 8.4
+      external_connected: false
+      error: null
+    expected_contains:
+      - "CPU: 42.5 C"
+      - "CPU util: 8%"
+      - "GPU: 39.0 C"
+      - "GPU util: 22%"
+      - "System power: 13.9 W"
+      - "Battery power: 8.4 W"
+      - "Fan 1: 1346 RPM"
+      - "Fan 2: 1456 RPM"
+  - name: fanless
+    snapshot:
+      cpu_celsius: 35.0
+      gpu_celsius: null
+      cpu_util_pct: null
+      gpu_util_pct: null
+      fan_rpms: []
+      error: null
+    expected_contains:
+      - "CPU: 35.0 C"
+      - "Fans: none / fanless"
+
+decode_smc_value:
+  - name: float_temperature
+    raw_hex: "00004242"
+    data_type: 1718383648
+    data_size: 4
+    expected: 48.5
+  - name: sp78_temperature
+    raw_hex: "28c0"
+    data_type: 0
+    data_size: 2
+    expected: 40.75
+
+smc_key_to_uint:
+  - name: fan_key
+    key: "F0Ac"
+    expected: 1177567587

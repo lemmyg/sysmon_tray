@@ -1,0 +1,61 @@
+smc_key_to_uint:
+  - name: fan0_actual
+    key: "F0Ac"
+    expected: 1177567587
+  - name: fan_count
+    key: "FNum"
+    expected: 1179546989
+
+decode_smc_value:
+  - name: float_rpm
+    raw_hex: "00c0a844"
+    data_type: "flt "
+    data_size: 4
+    expected: 1350.0
+  - name: float_zero
+    raw_hex: "00000000"
+    data_type: "flt "
+    data_size: 4
+    expected: 0.0
+  - name: ui8_fan_count
+    raw_hex: "02"
+    data_type: "ui8 "
+    data_size: 1
+    expected: 2.0
+  - name: sp78_two_bytes
+    raw_hex: "2b00"
+    data_type: "sp78"
+    data_size: 2
+    expected: 43.0
+  - name: zero_size
+    raw_hex: ""
+    data_type: "flt "
+    data_size: 0
+    expected: null
+  - name: unsupported_size
+    raw_hex: "0000000000000000"
+    data_type: "flt "
+    data_size: 8
+    expected: null
+  - name: truncated_payload
+    raw_hex: "00"
+    data_type: "flt "
+    data_size: 4
+    expected: null
+
+read_fan_speeds:
+  - name: two_fans_one_stopped
+    readings:
+      FNum: 2.0
+      F0Ac: 0.0
+      F1Ac: 1500.0
+    expected: [0, 1500]
+  - name: fanless
+    readings:
+      FNum: 0.0
+    expected: []
+  - name: fan_count_missing_fallback
+    readings:
+      F0Ac: 1200.0
+      F1Ac: 0.0
+    expected: [1200, 0]
