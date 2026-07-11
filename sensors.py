@@ -18,6 +18,7 @@ class SensorSnapshot:
     system_power_w: Optional[float] = None
     battery_power_w: Optional[float] = None
     external_connected: Optional[bool] = None
+    battery_pct: Optional[float] = None
     error: Optional[str] = None
 
 
@@ -28,36 +29,39 @@ def format_tray_label(snapshot: SensorSnapshot) -> str:
         snapshot (SensorSnapshot): Latest sensor readings.
 
     Returns:
-        str: Text like ``12% | 41C | 36% | 40C | 14W | 8W | 1351+ | 1455+``.
+        str: Text like ``c12% | c41C | g36% | g40C | s14W | b8W | b98% | f1351+ | f1455+``.
     """
     cpu_util = (
-        f"{snapshot.cpu_util_pct:.0f}%"
+        f"c{snapshot.cpu_util_pct:.0f}%"
         if snapshot.cpu_util_pct is not None
-        else "--"
+        else "c--"
     )
     cpu_c = (
-        f"{snapshot.cpu_celsius:.0f}C"
+        f"c{snapshot.cpu_celsius:.0f}C"
         if snapshot.cpu_celsius is not None
-        else "--"
+        else "c--"
     )
     gpu_util = (
-        f"{snapshot.gpu_util_pct:.0f}%"
+        f"g{snapshot.gpu_util_pct:.0f}%"
         if snapshot.gpu_util_pct is not None
-        else "--"
+        else "g--"
     )
     gpu_c = (
-        f"{snapshot.gpu_celsius:.0f}C"
+        f"g{snapshot.gpu_celsius:.0f}C"
         if snapshot.gpu_celsius is not None
-        else "--"
+        else "g--"
     )
     parts = [cpu_util, cpu_c, gpu_util, gpu_c]
     if snapshot.system_power_w is not None:
-        parts.append(f"{snapshot.system_power_w:.0f}W")
+        parts.append(f"s{snapshot.system_power_w:.0f}W")
     battery_part = _format_battery_power_part(snapshot)
     if battery_part is not None:
         parts.append(battery_part)
+    battery_pct_part = _format_battery_pct_part(snapshot)
+    if battery_pct_part is not None:
+        parts.append(battery_pct_part)
     if snapshot.fan_rpms:
-        parts.extend(f"{rpm}+" for rpm in snapshot.fan_rpms)
+        parts.extend(f"f{rpm}+" for rpm in snapshot.fan_rpms)
     return " | ".join(parts)
 
 
@@ -70,6 +74,13 @@ def _format_battery_power_part(snapshot: SensorSnapshot) -> Optional[str]:
         snapshot.external_connected,
         snapshot.system_power_w,
     )
+
+
+def _format_battery_pct_part(snapshot: SensorSnapshot) -> Optional[str]:
+    """Build the battery percentage segment for the tray label."""
+    from .power_darwin import format_battery_pct_part
+
+    return format_battery_pct_part(snapshot.battery_pct)
 
 
 def format_tooltip(snapshot: SensorSnapshot) -> str:
@@ -103,6 +114,8 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
         )
         if discharge_w is not None:
             lines.append(f"Battery power: {discharge_w:.1f} W")
+    if snapshot.battery_pct is not None:
+        lines.append(f"Battery: {snapshot.battery_pct:.0f}%")
     if snapshot.fan_rpms:
         fan_text = ", ".join(f"Fan {index + 1}: {rpm} RPM" for index, rpm in enumerate(snapshot.fan_rpms))
         lines.append(fan_text)
@@ -127,6 +140,7 @@ def read_sensors() -> SensorSnapshot:
     system_power_w: Optional[float] = None
     battery_power_w: Optional[float] = None
     external_connected: Optional[bool] = None
+    battery_pct: Optional[float] = None
     errors: list[str] = []
 
     try:
@@ -161,6 +175,7 @@ def read_sensors() -> SensorSnapshot:
         system_power_w = power.system_power_w
         battery_power_w = power.battery_power_w
         external_connected = power.external_connected
+        battery_pct = power.battery_pct
     except Exception as exc:
         errors.append(f"power: {exc}")
 
@@ -173,6 +188,7 @@ def read_sensors() -> SensorSnapshot:
         system_power_w=system_power_w,
         battery_power_w=battery_power_w,
         external_connected=external_connected,
+        battery_pct=battery_pct,
         error="; ".join(errors) if errors else None,
     )
 

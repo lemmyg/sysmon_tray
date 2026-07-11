@@ -9,9 +9,13 @@ PYTHON="${SCRIPT_DIR}/.venv/bin/python"
 PROCESS_NAME="sysmon_tray"
 LOG_FILE="${SYSMON_TRAY_LOG:-/tmp/sysmon_tray.log}"
 REFRESH_SECONDS="${SYSMON_TRAY_REFRESH_SECONDS:-5.0}"
+LAUNCH_AGENT_LABEL="com.sysmon_tray"
+LAUNCH_AGENT_DIR="${HOME}/Library/LaunchAgents"
+LAUNCH_AGENT_PLIST="${LAUNCH_AGENT_DIR}/${LAUNCH_AGENT_LABEL}.plist"
+LEGACY_LAUNCH_AGENT_LABEL="com.galder.sysmon_tray"
 
 usage() {
-  echo "Usage: $0 {start|stop|restart|status}" >&2
+  echo "Usage: $0 {start|stop|restart|status|install|uninstall}" >&2
   echo "Env: SYSMON_TRAY_REFRESH_SECONDS (default: 5.0)" >&2
   echo "     SYSMON_TRAY_LOG (default: /tmp/sysmon_tray.log)" >&2
   exit 1
@@ -23,6 +27,50 @@ is_running() {
 
 pid_of() {
   pgrep -x "${PROCESS_NAME}" || true
+}
+
+gui_domain() {
+  echo "gui/$(id -u)"
+}
+
+bootout_label() {
+  local label="$1"
+  launchctl bootout "$(gui_domain)/${label}" 2>/dev/null || true
+}
+
+write_launch_agent_plist() {
+  mkdir -p "${LAUNCH_AGENT_DIR}"
+  cat >"${LAUNCH_AGENT_PLIST}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>${LAUNCH_AGENT_LABEL}</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>${PYTHON}</string>
+		<string>-m</string>
+		<string>sysmon_tray</string>
+		<string>--refresh-seconds</string>
+		<string>${REFRESH_SECONDS}</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PYTHONPATH</key>
+		<string>${GIT_PARENT}</string>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>${SCRIPT_DIR}</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>${LOG_FILE}</string>
+	<key>StandardErrorPath</key>
+	<string>${LOG_FILE}</string>
+</dict>
+</plist>
+EOF
 }
 
 cmd_start() {
@@ -90,10 +138,44 @@ cmd_status() {
   fi
 }
 
+cmd_install() {
+  if [[ ! -x "${PYTHON}" ]]; then
+    echo "Missing venv python: ${PYTHON}" >&2
+    exit 1
+  fi
+
+  # Drop the old personalized label if present.
+  bootout_label "${LEGACY_LAUNCH_AGENT_LABEL}"
+  rm -f "${LAUNCH_AGENT_DIR}/${LEGACY_LAUNCH_AGENT_LABEL}.plist"
+
+  bootout_label "${LAUNCH_AGENT_LABEL}"
+  write_launch_agent_plist
+  launchctl bootstrap "$(gui_domain)" "${LAUNCH_AGENT_PLIST}"
+  sleep 1
+
+  if is_running; then
+    echo "installed ${LAUNCH_AGENT_LABEL} (pid $(pid_of), plist ${LAUNCH_AGENT_PLIST})"
+  else
+    echo "installed ${LAUNCH_AGENT_LABEL}, but ${PROCESS_NAME} is not running; see ${LOG_FILE}" >&2
+    exit 1
+  fi
+}
+
+cmd_uninstall() {
+  bootout_label "${LAUNCH_AGENT_LABEL}"
+  bootout_label "${LEGACY_LAUNCH_AGENT_LABEL}"
+  rm -f "${LAUNCH_AGENT_PLIST}"
+  rm -f "${LAUNCH_AGENT_DIR}/${LEGACY_LAUNCH_AGENT_LABEL}.plist"
+  cmd_stop
+  echo "uninstalled ${LAUNCH_AGENT_LABEL}"
+}
+
 case "${1:-}" in
   start) cmd_start ;;
   stop) cmd_stop ;;
   restart) cmd_restart ;;
   status) cmd_status ;;
+  install) cmd_install ;;
+  uninstall) cmd_uninstall ;;
   *) usage ;;
 esac

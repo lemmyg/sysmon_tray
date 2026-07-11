@@ -56,6 +56,7 @@ class PowerTelemetry:
     system_power_w: Optional[float]
     battery_power_w: Optional[float]
     external_connected: Optional[bool]
+    battery_pct: Optional[float] = None
 
 
 def milliwatts_to_watts(milliwatts: int) -> float:
@@ -107,7 +108,7 @@ def format_battery_power_part(
         system_power_w (float | None): Total system power in watts.
 
     Returns:
-        str | None: Compact label like ``8W``, or None when unavailable.
+        str | None: Compact label like ``b8W``, or None when unavailable.
     """
     discharge_w = battery_discharge_w(
         battery_power_w,
@@ -116,7 +117,45 @@ def format_battery_power_part(
     )
     if discharge_w is None:
         return None
-    return f"{discharge_w:.0f}W"
+    return f"b{discharge_w:.0f}W"
+
+
+def battery_percent(
+    current_capacity: Optional[int],
+    max_capacity: Optional[int],
+) -> Optional[float]:
+    """Resolve battery charge percentage from AppleSmartBattery capacities.
+
+    Args:
+        current_capacity (int | None): CurrentCapacity registry value.
+        max_capacity (int | None): MaxCapacity registry value.
+
+    Returns:
+        float | None: Charge percentage from 0 to 100, or None when unavailable.
+    """
+    if current_capacity is None:
+        return None
+    if max_capacity is not None and max_capacity > 0:
+        if max_capacity == 100:
+            return float(current_capacity)
+        return 100.0 * float(current_capacity) / float(max_capacity)
+    if 0 <= current_capacity <= 100:
+        return float(current_capacity)
+    return None
+
+
+def format_battery_pct_part(battery_pct: Optional[float]) -> Optional[str]:
+    """Format battery charge percentage for the tray label.
+
+    Args:
+        battery_pct (float | None): Battery charge percentage.
+
+    Returns:
+        str | None: Compact label like ``b98%``, or None when unavailable.
+    """
+    if battery_pct is None:
+        return None
+    return f"b{battery_pct:.0f}%"
 
 
 def read_system_power_w() -> Optional[float]:
@@ -140,16 +179,25 @@ def read_power_telemetry() -> PowerTelemetry:
     """
     service = _open_battery_service()
     if not service:
-        return PowerTelemetry(None, None, None)
+        return PowerTelemetry(None, None, None, None)
 
     external_connected = _read_bool_property(service, "ExternalConnected")
+    battery_pct = battery_percent(
+        _read_int_property(service, "CurrentCapacity"),
+        _read_int_property(service, "MaxCapacity"),
+    )
     telemetry = _read_registry_object(service, "PowerTelemetryData")
     if not telemetry:
-        return PowerTelemetry(None, None, external_connected)
+        return PowerTelemetry(None, None, external_connected, battery_pct)
 
     system_power_w = _optional_milliwatts(telemetry.get("SystemPowerIn"))
     battery_power_w = _optional_milliwatts(telemetry.get("BatteryPower"))
-    return PowerTelemetry(system_power_w, battery_power_w, external_connected)
+    return PowerTelemetry(
+        system_power_w,
+        battery_power_w,
+        external_connected,
+        battery_pct,
+    )
 
 
 def _open_battery_service() -> int:
@@ -222,6 +270,41 @@ def _read_bool_property(service: int, property_name: str) -> Optional[bool]:
             return value
         if isinstance(value, int):
             return bool(value)
+        return None
+    finally:
+        CFRelease(property_ref)
+
+
+def _read_int_property(service: int, property_name: str) -> Optional[int]:
+    """Read one IORegistry integer property.
+
+    Args:
+        service (int): AppleSmartBattery IORegistry handle.
+        property_name (str): Registry property name.
+
+    Returns:
+        int | None: Integer value, or None when missing or non-numeric.
+    """
+    key = _cf_string(property_name)
+    if not key:
+        return None
+
+    property_ref = IORegistryEntryCreateCFProperty(
+        service,
+        key,
+        kCFAllocatorDefault,
+        0,
+    )
+    CFRelease(key)
+    if not property_ref:
+        return None
+
+    try:
+        value = objc.objc_object(c_void_p=property_ref)
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return int(value)
         return None
     finally:
         CFRelease(property_ref)

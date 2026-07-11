@@ -28,19 +28,45 @@ format_battery_power_part:
     battery_power_w: 8.4
     system_power_w: 13.9
     external_connected: false
-    expected: "8W"
+    expected: "b8W"
   - name: on_battery_fallback
     battery_power_w: 0.0
     system_power_w: 13.9
     external_connected: false
-    expected: "14W"
+    expected: "b14W"
   - name: on_ac_idle
     battery_power_w: 0.0
     system_power_w: 13.9
     external_connected: true
-    expected: "0W"
+    expected: "b0W"
   - name: missing_battery
     battery_power_w: null
     system_power_w: 13.9
     external_connected: null
+    expected: null
+
+battery_percent:
+  - name: modern_percentage
+    current_capacity: 98
+    max_capacity: 100
+    expected: 98.0
+  - name: raw_mah
+    current_capacity: 8173
+    max_capacity: 8805
+    expected: 92.822259
+  - name: current_only
+    current_capacity: 75
+    max_capacity: null
+    expected: 75.0
+  - name: missing
+    current_capacity: null
+    max_capacity: 100
+    expected: null
+
+format_battery_pct_part:
+  - name: charged
+    battery_pct: 98.0
+    expected: "b98%"
+  - name: missing
+    battery_pct: null
     expected: null

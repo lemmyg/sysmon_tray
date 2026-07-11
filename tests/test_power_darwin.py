@@ -7,7 +7,13 @@ from pathlib import Path
 
 import yaml
 
-from ..power_darwin import battery_discharge_w, format_battery_power_part, milliwatts_to_watts
+from ..power_darwin import (
+    battery_discharge_w,
+    battery_percent,
+    format_battery_pct_part,
+    format_battery_power_part,
+    milliwatts_to_watts,
+)
 
 
 def _load_cases() -> dict:
@@ -46,6 +52,26 @@ class TestPowerDarwin(unittest.TestCase):
                         case["external_connected"],
                         case.get("system_power_w"),
                     ),
+                )
+
+    def test_battery_percent(self) -> None:
+        for case in self.cases["battery_percent"]:
+            with self.subTest(name=case["name"]):
+                result = battery_percent(
+                    case["current_capacity"],
+                    case["max_capacity"],
+                )
+                if case["expected"] is None:
+                    self.assertIsNone(result)
+                else:
+                    self.assertAlmostEqual(case["expected"], result, places=4)
+
+    def test_format_battery_pct_part(self) -> None:
+        for case in self.cases["format_battery_pct_part"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_battery_pct_part(case["battery_pct"]),
                 )
 
     def test_milliwatts_to_watts(self) -> None:

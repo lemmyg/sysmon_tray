@@ -2,7 +2,7 @@
 
 Live CPU/GPU temperature and fan-speed monitor for the macOS menu bar.
 
-The label shows compact readings like `12% | 41C | 36% | 40C | 1351+ | 1455+` (CPU %, CPU °C, GPU %, GPU °C, fan RPMs). Hover for details; right-click for Refresh interval and Quit.
+The label shows compact readings like `c12% | c41C | g36% | g40C | s14W | b8W | b98% | f1351+ | f1455+` (CPU %, CPU °C, GPU %, GPU °C, system W, battery W, battery %, fan RPMs). Hover for details; right-click for Refresh interval and Quit.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ The package is meant to run with `PYTHONPATH` pointing at the parent directory t
 
 ## Run
 
-Detached (launches via `osascript` under `launchd`, so it survives closing Cursor or the terminal):
+Detached (survives closing Cursor or the terminal):
 
 ```bash
 cd ~/git/sysmon_tray
@@ -37,6 +37,13 @@ cd ~/git/sysmon_tray
 ./sysmon_tray.sh stop
 ./sysmon_tray.sh restart
 ./sysmon_tray.sh status
+```
+
+Start at login (writes a machine-local LaunchAgent under `~/Library/LaunchAgents/`; no personal paths are committed in the repo):
+
+```bash
+./sysmon_tray.sh install
+./sysmon_tray.sh uninstall
 ```
 
 Optional env vars: `SYSMON_TRAY_REFRESH_SECONDS` (default `5.0`), `SYSMON_TRAY_LOG` (default `/tmp/sysmon_tray.log`).
@@ -62,7 +69,7 @@ sysmon_tray/.venv/bin/python -m unittest discover -s sysmon_tray.tests -v
 
 | Module | Role |
 |--------|------|
-| `sysmon_tray.sh` | Detached start / stop / restart / status |
+| `sysmon_tray.sh` | Detached start / stop / restart / status / install / uninstall |
 | `__main__.py` | CLI entry point and process name registration |
 | `sensors.py` | macOS sensor reads and label formatting |
 | `smc_darwin.py` | Apple SMC fan-speed access |

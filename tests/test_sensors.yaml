@@ -7,7 +7,7 @@ format_tray_label:
       gpu_util_pct: 36.2
       fan_rpms: [1351, 1455]
       error: null
-    expected: "12% | 41C | 36% | 40C | 1351+ | 1455+"
+    expected: "c12% | c41C | g36% | g40C | f1351+ | f1455+"
   - name: with_fans_and_power
     snapshot:
       cpu_celsius: 41.2
@@ -18,7 +18,7 @@ format_tray_label:
       system_power_w: 13.9
       external_connected: true
       error: null
-    expected: "12% | 41C | 36% | 40C | 14W | 0W | 1351+ | 1455+"
+    expected: "c12% | c41C | g36% | g40C | s14W | b0W | f1351+ | f1455+"
   - name: with_system_power
     snapshot:
       cpu_celsius: 41.2
@@ -29,7 +29,7 @@ format_tray_label:
       system_power_w: 13.9
       external_connected: true
       error: null
-    expected: "12% | 41C | 36% | 40C | 14W | 0W"
+    expected: "c12% | c41C | g36% | g40C | s14W | b0W"
   - name: with_battery_power
     snapshot:
       cpu_celsius: 41.2
@@ -41,7 +41,20 @@ format_tray_label:
       battery_power_w: 8.4
       external_connected: false
       error: null
-    expected: "12% | 41C | 36% | 40C | 14W | 8W"
+    expected: "c12% | c41C | g36% | g40C | s14W | b8W"
+  - name: with_battery_pct
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 39.8
+      cpu_util_pct: 12.4
+      gpu_util_pct: 36.2
+      fan_rpms: [1351, 1455]
+      system_power_w: 13.9
+      battery_power_w: 8.4
+      external_connected: false
+      battery_pct: 98.0
+      error: null
+    expected: "c12% | c41C | g36% | g40C | s14W | b8W | b98% | f1351+ | f1455+"
   - name: fanless
     snapshot:
       cpu_celsius: 35.0
@@ -50,7 +63,7 @@ format_tray_label:
       gpu_util_pct: null
       fan_rpms: []
       error: null
-    expected: "-- | 35C | -- | --"
+    expected: "c-- | c35C | g-- | g--"
 
 format_tooltip:
   - name: full_snapshot
@@ -63,6 +76,7 @@ format_tooltip:
       system_power_w: 13.9
       battery_power_w: 8.4
       external_connected: false
+      battery_pct: 98.0
       error: null
     expected_contains:
       - "CPU: 42.5 C"
@@ -71,6 +85,7 @@ format_tooltip:
       - "GPU util: 22%"
       - "System power: 13.9 W"
       - "Battery power: 8.4 W"
+      - "Battery: 98%"
       - "Fan 1: 1346 RPM"
       - "Fan 2: 1456 RPM"
   - name: fanless
