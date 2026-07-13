@@ -23,6 +23,7 @@ class TrayMonitorApp:
 
         self._darwin_label = DarwinMenuBarLabel(
             on_set_refresh=self.set_refresh_seconds,
+            on_quit=self._app.quit,
             refresh_seconds=refresh_seconds,
         )
 

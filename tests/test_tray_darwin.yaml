@@ -23,3 +23,12 @@ seconds_to_milliseconds:
   - name: half_second
     seconds: 0.5
     expected: 500
+
+status_item_delegate_set_refresh_interval:
+  - name: two_seconds
+    tag_ms: 2000
+    expected_seconds: 2.0
+  - name: half_second
+    tag_ms: 500
+    expected_seconds: 0.5
+

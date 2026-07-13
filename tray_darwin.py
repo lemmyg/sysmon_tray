@@ -52,10 +52,14 @@ class _StatusItemDelegate(NSObject):
         if self is None:
             return None
         self._on_set_refresh = callbacks["on_set_refresh"]
+        self._on_quit = callbacks["on_quit"]
         return self
 
     def setRefreshInterval_(self, sender) -> None:
         self._on_set_refresh(sender.tag() / 1000.0)
+
+    def quitApp_(self, sender) -> None:
+        self._on_quit()
 
 
 class DarwinMenuBarLabel:
@@ -64,6 +68,7 @@ class DarwinMenuBarLabel:
     def __init__(
         self,
         on_set_refresh: Callable[[float], None],
+        on_quit: Callable[[], None],
         refresh_seconds: float,
     ) -> None:
         configure_ns_application()
@@ -79,6 +84,7 @@ class DarwinMenuBarLabel:
         delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
             {
                 "on_set_refresh": on_set_refresh,
+                "on_quit": on_quit,
             },
         )
         self._delegate = delegate
@@ -109,10 +115,10 @@ class DarwinMenuBarLabel:
         menu.addItem_(NSMenuItem.separatorItem())
         quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             "Quit",
-            "terminate:",
+            "quitApp:",
             "",
         )
-        quit_item.setTarget_(NSApp)
+        quit_item.setTarget_(delegate)
         menu.addItem_(quit_item)
         self._status_item.setMenu_(menu)
 
