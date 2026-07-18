@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from .tray_common import default_label_components, is_label_component_enabled
+
 
 @dataclass(frozen=True)
 class SensorSnapshot:
@@ -22,47 +24,62 @@ class SensorSnapshot:
     error: Optional[str] = None
 
 
-def format_tray_label(snapshot: SensorSnapshot) -> str:
+def format_tray_label(
+    snapshot: SensorSnapshot,
+    components: Optional[dict[str, bool]] = None,
+) -> str:
     """Build a compact single-line label for the tray icon.
 
     Args:
         snapshot (SensorSnapshot): Latest sensor readings.
+        components (dict[str, bool] | None): Enabled map for label segments.
+            When None, all components are shown.
 
     Returns:
-        str: Text like ``c12% | c41C | g36% | g40C | s14W | b8W | b98% | f1351+ | f1455+``.
+        str: Text like ``c12% c41C g36% g40C s14W b8W b98% f1351+ f1455+``.
     """
-    cpu_util = (
-        f"c{snapshot.cpu_util_pct:.0f}%"
-        if snapshot.cpu_util_pct is not None
-        else "c--"
-    )
-    cpu_c = (
-        f"c{snapshot.cpu_celsius:.0f}C"
-        if snapshot.cpu_celsius is not None
-        else "c--"
-    )
-    gpu_util = (
-        f"g{snapshot.gpu_util_pct:.0f}%"
-        if snapshot.gpu_util_pct is not None
-        else "g--"
-    )
-    gpu_c = (
-        f"g{snapshot.gpu_celsius:.0f}C"
-        if snapshot.gpu_celsius is not None
-        else "g--"
-    )
-    parts = [cpu_util, cpu_c, gpu_util, gpu_c]
-    if snapshot.system_power_w is not None:
-        parts.append(f"s{snapshot.system_power_w:.0f}W")
-    battery_part = _format_battery_power_part(snapshot)
-    if battery_part is not None:
-        parts.append(battery_part)
-    battery_pct_part = _format_battery_pct_part(snapshot)
-    if battery_pct_part is not None:
-        parts.append(battery_pct_part)
-    if snapshot.fan_rpms:
+    enabled = components if components is not None else default_label_components()
+    parts: list[str] = []
+    if is_label_component_enabled(enabled, "cpu_util"):
+        parts.append(
+            f"c{snapshot.cpu_util_pct:.0f}%"
+            if snapshot.cpu_util_pct is not None
+            else "c--"
+        )
+    if is_label_component_enabled(enabled, "cpu_temp"):
+        parts.append(
+            f"c{snapshot.cpu_celsius:.0f}C"
+            if snapshot.cpu_celsius is not None
+            else "c--"
+        )
+    if is_label_component_enabled(enabled, "gpu_util"):
+        parts.append(
+            f"g{snapshot.gpu_util_pct:.0f}%"
+            if snapshot.gpu_util_pct is not None
+            else "g--"
+        )
+    if is_label_component_enabled(enabled, "gpu_temp"):
+        parts.append(
+            f"g{snapshot.gpu_celsius:.0f}C"
+            if snapshot.gpu_celsius is not None
+            else "g--"
+        )
+    if is_label_component_enabled(enabled, "system_power"):
+        if snapshot.system_power_w is not None:
+            parts.append(f"s{snapshot.system_power_w:.0f}W")
+    if is_label_component_enabled(enabled, "battery_power"):
+        battery_part = _format_battery_power_part(snapshot)
+        if battery_part is not None:
+            parts.append(battery_part)
+    if is_label_component_enabled(enabled, "battery_pct"):
+        battery_pct_part = _format_battery_pct_part(snapshot)
+        if battery_pct_part is not None:
+            parts.append(battery_pct_part)
+    if is_label_component_enabled(enabled, "fans") and snapshot.fan_rpms:
         parts.extend(f"f{rpm}+" for rpm in snapshot.fan_rpms)
-    return " | ".join(parts)
+    if not parts:
+        return "--"
+    return " ".join(parts)
 
 
 def _format_battery_power_part(snapshot: SensorSnapshot) -> Optional[str]:

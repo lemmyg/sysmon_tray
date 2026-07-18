@@ -28,7 +28,12 @@ class TestSensors(unittest.TestCase):
         for case in self.cases["format_tray_label"]:
             with self.subTest(name=case["name"]):
                 snapshot = SensorSnapshot(**case["snapshot"])
-                self.assertEqual(case["expected"], format_tray_label(snapshot))
+                components = case.get("components")
+                if components is None:
+                    label = format_tray_label(snapshot)
+                else:
+                    label = format_tray_label(snapshot, components)
+                self.assertEqual(case["expected"], label)
 
     def test_format_tooltip(self) -> None:
         for case in self.cases["format_tooltip"]:

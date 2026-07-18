@@ -1,0 +1,96 @@
+merge_label_components:
+  - name: none_uses_defaults
+    raw: null
+    expected:
+      cpu_util: true
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: true
+  - name: partial_override
+    raw:
+      cpu_util: false
+      fans: false
+      unknown_key: false
+    expected:
+      cpu_util: false
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: false
+  - name: invalid_type_uses_defaults
+    raw: "not-a-map"
+    expected:
+      cpu_util: true
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: true
+
+load_label_components:
+  - name: missing_file
+    file: null
+    expected:
+      cpu_util: true
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: true
+  - name: valid_file
+    file: |
+      components:
+        cpu_util: false
+        battery_pct: false
+    expected:
+      cpu_util: false
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      system_power: true
+      battery_power: true
+      battery_pct: false
+      fans: true
+  - name: invalid_yaml
+    file: "{not: valid: yaml"
+    expected:
+      cpu_util: true
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: true
+
+save_label_components:
+  - name: roundtrip
+    components:
+      cpu_util: false
+      cpu_temp: true
+      gpu_util: false
+      gpu_temp: true
+      system_power: true
+      battery_power: false
+      battery_pct: true
+      fans: false
+    expected:
+      cpu_util: false
+      cpu_temp: true
+      gpu_util: false
+      gpu_temp: true
+      system_power: true
+      battery_power: false
+      battery_pct: true
+      fans: false

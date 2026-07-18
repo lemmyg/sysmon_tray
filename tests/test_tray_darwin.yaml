@@ -32,3 +32,53 @@ status_item_delegate_set_refresh_interval:
     tag_ms: 500
     expected_seconds: 0.5
 
+status_item_length_for_title_width:
+  - name: default_padding
+    title_width: 120.0
+    padding: null
+    expected: 136.0
+  - name: custom_padding
+    title_width: 80.0
+    padding: 10.0
+    expected: 90.0
+  - name: zero_width
+    title_width: 0.0
+    padding: 16.0
+    expected: 16.0
+  - name: negative_width_clamped
+    title_width: -5.0
+    padding: 16.0
+    expected: 16.0
+
+toggle_label_component:
+  - name: disable_cpu_util
+    key: cpu_util
+    components:
+      cpu_util: true
+      cpu_temp: true
+    expected:
+      cpu_util: false
+      cpu_temp: true
+  - name: enable_fans
+    key: fans
+    components:
+      fans: false
+    expected:
+      fans: true
+
+label_component_key_for_tag:
+  - name: cpu_util
+    tag: 0
+    expected: cpu_util
+  - name: fans
+    tag: 7
+    expected: fans
+
+status_item_delegate_toggle_component:
+  - name: cpu_temp
+    tag: 1
+    expected_key: cpu_temp
+  - name: battery_pct
+    tag: 6
+    expected_key: battery_pct
+
