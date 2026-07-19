@@ -36,7 +36,7 @@ def format_tray_label(
             When None, all components are shown.
 
     Returns:
-        str: Text like ``c12% c41C g36% g40C s14W b8W b98% f1351+ f1455+``.
+        str: Text like ``c12% c41° g36% g40° s14W b8W b98% f1351+ f1455+``.
     """
     enabled = components if components is not None else default_label_components()
     parts: list[str] = []
@@ -48,7 +48,7 @@ def format_tray_label(
         )
     if is_label_component_enabled(enabled, "cpu_temp"):
         parts.append(
-            f"c{snapshot.cpu_celsius:.0f}C"
+            f"c{snapshot.cpu_celsius:.0f}°"
             if snapshot.cpu_celsius is not None
             else "c--"
         )
@@ -60,7 +60,7 @@ def format_tray_label(
         )
     if is_label_component_enabled(enabled, "gpu_temp"):
         parts.append(
-            f"g{snapshot.gpu_celsius:.0f}C"
+            f"g{snapshot.gpu_celsius:.0f}°"
             if snapshot.gpu_celsius is not None
             else "g--"
         )
@@ -111,13 +111,13 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
     """
     lines = ["System monitor"]
     if snapshot.cpu_celsius is not None:
-        lines.append(f"CPU: {snapshot.cpu_celsius:.1f} C")
+        lines.append(f"CPU: {snapshot.cpu_celsius:.1f}°C")
     if snapshot.cpu_util_pct is not None:
-        lines.append(f"CPU util: {snapshot.cpu_util_pct:.0f}%")
+        lines.append(f"CPU: {snapshot.cpu_util_pct:.0f}%")
     if snapshot.gpu_celsius is not None:
-        lines.append(f"GPU: {snapshot.gpu_celsius:.1f} C")
+        lines.append(f"GPU: {snapshot.gpu_celsius:.1f}°C")
     if snapshot.gpu_util_pct is not None:
-        lines.append(f"GPU util: {snapshot.gpu_util_pct:.0f}%")
+        lines.append(f"GPU: {snapshot.gpu_util_pct:.0f}%")
     if snapshot.system_power_w is not None:
         lines.append(f"System power: {snapshot.system_power_w:.1f} W")
     battery_part = _format_battery_power_part(snapshot)

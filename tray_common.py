@@ -7,12 +7,12 @@ STATUS_ITEM_TITLE_PADDING = 16.0
 
 # (key, menu title) for each tray label segment.
 LABEL_COMPONENTS: tuple[tuple[str, str], ...] = (
-    ("cpu_util", "CPU util"),
-    ("cpu_temp", "CPU temp"),
-    ("gpu_util", "GPU util"),
-    ("gpu_temp", "GPU temp"),
-    ("system_power", "System power"),
-    ("battery_power", "Battery power"),
+    ("cpu_util", "CPU %"),
+    ("cpu_temp", "CPU °C"),
+    ("gpu_util", "GPU %"),
+    ("gpu_temp", "GPU °C"),
+    ("system_power", "System W"),
+    ("battery_power", "Battery W"),
     ("battery_pct", "Battery %"),
     ("fans", "Fans"),
 )
