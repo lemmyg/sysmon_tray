@@ -71,14 +71,17 @@ label_component_key_for_tag:
     tag: 0
     expected: cpu_util
   - name: fans
-    tag: 7
+    tag: 8
     expected: fans
+  - name: memory
+    tag: 4
+    expected: memory
 
 status_item_delegate_toggle_component:
   - name: cpu_temp
     tag: 1
     expected_key: cpu_temp
   - name: battery_pct
-    tag: 6
+    tag: 7
     expected_key: battery_pct
 

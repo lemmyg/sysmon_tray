@@ -64,6 +64,17 @@ format_tray_label:
       fan_rpms: []
       error: null
     expected: "c-- c35° g-- g--"
+  - name: with_memory
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 39.8
+      cpu_util_pct: 12.4
+      gpu_util_pct: 36.2
+      memory_used_gb: 9.5
+      memory_total_gb: 36.0
+      fan_rpms: []
+      error: null
+    expected: "c12% c41° g36% g40° m10G"
   - name: only_temps_enabled
     snapshot:
       cpu_celsius: 41.2
@@ -81,6 +92,7 @@ format_tray_label:
       cpu_temp: true
       gpu_util: false
       gpu_temp: true
+      memory: false
       system_power: false
       battery_power: false
       battery_pct: false
@@ -99,6 +111,7 @@ format_tray_label:
       cpu_temp: false
       gpu_util: false
       gpu_temp: false
+      memory: false
       system_power: false
       battery_power: false
       battery_pct: false
@@ -112,6 +125,8 @@ format_tooltip:
       gpu_celsius: 39.0
       cpu_util_pct: 8.0
       gpu_util_pct: 22.0
+      memory_used_gb: 9.5
+      memory_total_gb: 36.0
       fan_rpms: [1346, 1456]
       system_power_w: 13.9
       battery_power_w: 8.4
@@ -123,6 +138,7 @@ format_tooltip:
       - "CPU: 8%"
       - "GPU: 39.0°C"
       - "GPU: 22%"
+      - "Memory: 9.5 / 36.0 GB (26%)"
       - "System power: 13.9 W"
       - "Battery power: 8.4 W"
       - "Battery: 98%"
@@ -156,3 +172,45 @@ smc_key_to_uint:
   - name: fan_key
     key: "F0Ac"
     expected: 1177567587
+
+memory_bytes_to_gb:
+  - name: one_gib
+    memory_bytes: 1073741824
+    expected: 1.0
+  - name: ten_gib
+    memory_bytes: 10737418240
+    expected: 10.0
+
+memory_bytes_to_gb_pair:
+  - name: valid_pair
+    used_bytes: 10209443840
+    total_bytes: 38654705664
+    expected: [9.508285522460938, 36.0]
+  - name: missing_used
+    used_bytes: null
+    total_bytes: 38654705664
+    expected: [null, null]
+  - name: zero_total
+    used_bytes: 10209443840
+    total_bytes: 0
+    expected: [null, null]
+
+format_memory_tray_part:
+  - name: rounded_gigabytes
+    memory_used_gb: 9.5
+    memory_total_gb: 36.0
+    expected: "m10G"
+  - name: missing_used
+    memory_used_gb: null
+    memory_total_gb: 36.0
+    expected: null
+
+format_memory_tooltip:
+  - name: used_and_total
+    memory_used_gb: 9.5
+    memory_total_gb: 36.0
+    expected: "Memory: 9.5 / 36.0 GB (26%)"
+  - name: missing_total
+    memory_used_gb: 9.5
+    memory_total_gb: null
+    expected: null

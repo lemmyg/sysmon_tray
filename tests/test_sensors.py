@@ -7,7 +7,15 @@ from pathlib import Path
 
 import yaml
 
-from ..sensors import SensorSnapshot, format_tooltip, format_tray_label
+from ..sensors import (
+    SensorSnapshot,
+    format_memory_tooltip,
+    format_memory_tray_part,
+    format_tooltip,
+    format_tray_label,
+    memory_bytes_to_gb,
+    memory_bytes_to_gb_pair,
+)
 from ..smc_darwin import decode_smc_value, smc_key_to_uint
 
 
@@ -55,6 +63,45 @@ class TestSensors(unittest.TestCase):
         for case in self.cases["smc_key_to_uint"]:
             with self.subTest(name=case["name"]):
                 self.assertEqual(case["expected"], smc_key_to_uint(case["key"]))
+
+    def test_memory_bytes_to_gb(self) -> None:
+        for case in self.cases["memory_bytes_to_gb"]:
+            with self.subTest(name=case["name"]):
+                self.assertAlmostEqual(
+                    case["expected"],
+                    memory_bytes_to_gb(case["memory_bytes"]),
+                    places=4,
+                )
+
+    def test_memory_bytes_to_gb_pair(self) -> None:
+        for case in self.cases["memory_bytes_to_gb_pair"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    tuple(case["expected"]),
+                    memory_bytes_to_gb_pair(case["used_bytes"], case["total_bytes"]),
+                )
+
+    def test_format_memory_tray_part(self) -> None:
+        for case in self.cases["format_memory_tray_part"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_memory_tray_part(
+                        case.get("memory_used_gb"),
+                        case.get("memory_total_gb"),
+                    ),
+                )
+
+    def test_format_memory_tooltip(self) -> None:
+        for case in self.cases["format_memory_tooltip"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_memory_tooltip(
+                        case.get("memory_used_gb"),
+                        case.get("memory_total_gb"),
+                    ),
+                )
 
 
 if __name__ == "__main__":
