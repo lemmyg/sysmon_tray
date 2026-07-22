@@ -15,7 +15,8 @@ LAUNCH_AGENT_PLIST="${LAUNCH_AGENT_DIR}/${LAUNCH_AGENT_LABEL}.plist"
 LEGACY_LAUNCH_AGENT_LABEL="com.galder.sysmon_tray"
 
 usage() {
-  echo "Usage: $0 {start|stop|restart|status|install|uninstall}" >&2
+  echo "Usage: $0 [start|stop|restart|status|install|uninstall]" >&2
+  echo "Default with no argument: restart" >&2
   echo "Env: SYSMON_TRAY_REFRESH_SECONDS (default: 5.0)" >&2
   echo "     SYSMON_TRAY_LOG (default: /tmp/sysmon_tray.log)" >&2
   exit 1
@@ -170,7 +171,7 @@ cmd_uninstall() {
   echo "uninstalled ${LAUNCH_AGENT_LABEL}"
 }
 
-case "${1:-}" in
+case "${1:-restart}" in
   start) cmd_start ;;
   stop) cmd_stop ;;
   restart) cmd_restart ;;

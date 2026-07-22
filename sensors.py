@@ -193,7 +193,12 @@ def read_sensors() -> SensorSnapshot:
         gpu_stats = system_gpu_stats()
         gpu_util_pct = _optional_float(gpu_stats.get("device_utilization"))
 
-        memory_used_bytes = _optional_float(sys_stats.get("memory_used"))
+        memory_used_bytes = memory_used_bytes_from_stats(
+            _optional_float(sys_stats.get("memory_used")),
+            _optional_float(sys_stats.get("memory_available")),
+            _optional_float(sys_stats.get("memory_free")),
+            _optional_float(sys_stats.get("memory_inactive")),
+        )
         memory_total_bytes = _optional_float(sys_stats.get("memory_total"))
         memory_used_gb, memory_total_gb = memory_bytes_to_gb_pair(
             memory_used_bytes,
@@ -234,6 +239,64 @@ def read_sensors() -> SensorSnapshot:
         battery_pct=battery_pct,
         error="; ".join(errors) if errors else None,
     )
+
+
+def memory_speculative_bytes(
+    memory_available: Optional[float],
+    memory_free: Optional[float],
+    memory_inactive: Optional[float],
+) -> Optional[float]:
+    """Estimate speculative memory bytes from Mach VM statistics.
+
+    Args:
+        memory_available (float | None): Free + inactive + speculative bytes.
+        memory_free (float | None): Free page bytes.
+        memory_inactive (float | None): Inactive page bytes.
+
+    Returns:
+        float | None: Speculative memory in bytes when all inputs are present.
+    """
+    if (
+        memory_available is None
+        or memory_free is None
+        or memory_inactive is None
+    ):
+        return None
+    speculative = memory_available - memory_free - memory_inactive
+    return max(0.0, speculative)
+
+
+def memory_used_bytes_from_stats(
+    memory_used: Optional[float],
+    memory_available: Optional[float],
+    memory_free: Optional[float],
+    memory_inactive: Optional[float],
+) -> Optional[float]:
+    """Compute macOS-style used memory bytes from darwin-perf stats.
+
+    Includes active, wired, compressed, and speculative memory so the tray
+    value aligns with macOS system tools more closely than ``memory_used``
+    alone.
+
+    Args:
+        memory_used (float | None): Active + wired + compressed bytes.
+        memory_available (float | None): Free + inactive + speculative bytes.
+        memory_free (float | None): Free page bytes.
+        memory_inactive (float | None): Inactive page bytes.
+
+    Returns:
+        float | None: Used memory in bytes when inputs are available.
+    """
+    if memory_used is None:
+        return None
+    speculative = memory_speculative_bytes(
+        memory_available,
+        memory_free,
+        memory_inactive,
+    )
+    if speculative is None:
+        return None
+    return memory_used + speculative
 
 
 def memory_bytes_to_gb(memory_bytes: float) -> float:
@@ -278,11 +341,11 @@ def format_memory_tray_part(
         memory_total_gb (float | None): Total memory in GiB.
 
     Returns:
-        str | None: Text like ``m9G`` when used memory is available.
+        str | None: Text like ``m11.5G`` when used memory is available.
     """
     if memory_used_gb is None or memory_total_gb is None:
         return None
-    return f"m{memory_used_gb:.0f}G"
+    return f"m{memory_used_gb:.1f}G"
 
 
 def format_memory_tooltip(

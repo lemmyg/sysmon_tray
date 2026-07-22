@@ -15,6 +15,8 @@ from ..sensors import (
     format_tray_label,
     memory_bytes_to_gb,
     memory_bytes_to_gb_pair,
+    memory_speculative_bytes,
+    memory_used_bytes_from_stats,
 )
 from ..smc_darwin import decode_smc_value, smc_key_to_uint
 
@@ -63,6 +65,31 @@ class TestSensors(unittest.TestCase):
         for case in self.cases["smc_key_to_uint"]:
             with self.subTest(name=case["name"]):
                 self.assertEqual(case["expected"], smc_key_to_uint(case["key"]))
+
+    def test_memory_speculative_bytes(self) -> None:
+        for case in self.cases["memory_speculative_bytes"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    memory_speculative_bytes(
+                        case.get("memory_available"),
+                        case.get("memory_free"),
+                        case.get("memory_inactive"),
+                    ),
+                )
+
+    def test_memory_used_bytes_from_stats(self) -> None:
+        for case in self.cases["memory_used_bytes_from_stats"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    memory_used_bytes_from_stats(
+                        case.get("memory_used"),
+                        case.get("memory_available"),
+                        case.get("memory_free"),
+                        case.get("memory_inactive"),
+                    ),
+                )
 
     def test_memory_bytes_to_gb(self) -> None:
         for case in self.cases["memory_bytes_to_gb"]:
