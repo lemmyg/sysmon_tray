@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
-from typing import Callable
+from typing import Callable, Literal
 
 if sys.platform != "darwin":
     raise ImportError("tray_darwin is only available on macOS")
@@ -19,6 +20,8 @@ from AppKit import (
     NSMenu,
     NSMenuItem,
     NSStatusBar,
+    NSEventMaskLeftMouseUp,
+    NSEventMaskRightMouseUp,
     NSVariableStatusItemLength,
 )
 from Foundation import NSObject
@@ -42,6 +45,38 @@ __all__ = [
     "status_item_length_for_title_width",
 ]
 
+STATUS_ITEM_MENU_DELAY_SECONDS = 0.25
+ACTIVITY_MONITOR_APP_PATH = "/System/Applications/Utilities/Activity Monitor.app"
+
+
+def _launch_activity_monitor() -> None:
+    """Open the macOS Activity Monitor application."""
+    subprocess.Popen(
+        ["open", "-a", ACTIVITY_MONITOR_APP_PATH],
+        start_new_session=True,
+    )
+
+
+def status_item_click_action(
+    click_count: int,
+    button_number: int = 0,
+) -> Literal["activity_monitor", "menu", "menu_delayed"]:
+    """Resolve the action for a status item mouse click.
+
+    Args:
+        click_count (int): NSEvent click count for the current gesture.
+        button_number (int): Mouse button number (0 for primary).
+
+    Returns:
+        Literal["activity_monitor", "menu", "menu_delayed"]: Action to perform
+            for the click.
+    """
+    if click_count >= 2 and button_number == 0:
+        return "activity_monitor"
+    if click_count == 1 and button_number == 0:
+        return "menu_delayed"
+    return "menu"
+
 
 def configure_ns_application() -> None:
     """Register NSApplication as a menu-bar-only accessory app.
@@ -62,6 +97,8 @@ class _StatusItemDelegate(NSObject):
         self._on_set_refresh = callbacks["on_set_refresh"]
         self._on_toggle_component = callbacks["on_toggle_component"]
         self._on_quit = callbacks["on_quit"]
+        self._status_item = callbacks["status_item"]
+        self._menu = callbacks["menu"]
         return self
 
     def setRefreshInterval_(self, sender) -> None:
@@ -72,6 +109,38 @@ class _StatusItemDelegate(NSObject):
 
     def quitApp_(self, sender) -> None:
         self._on_quit()
+
+    def showStatusMenu_(self, sender) -> None:
+        """Pop up the status item menu after a delayed single click."""
+        self._status_item.popUpStatusItemMenu_(self._menu)
+
+    def statusBarButtonClicked_(self, sender) -> None:
+        """Show the menu or launch Activity Monitor on double-click."""
+        event = NSApp.currentEvent()
+        click_count = 0 if event is None else int(event.clickCount())
+        button_number = 0 if event is None else int(event.buttonNumber())
+        action = status_item_click_action(click_count, button_number)
+        if action == "activity_monitor":
+            NSObject.cancelPreviousPerformRequestsWithTarget_selector_object_(
+                self,
+                "showStatusMenu:",
+                None,
+            )
+            _launch_activity_monitor()
+            return
+        if action == "menu_delayed":
+            NSObject.cancelPreviousPerformRequestsWithTarget_selector_object_(
+                self,
+                "showStatusMenu:",
+                None,
+            )
+            self.performSelector_withObject_afterDelay_(
+                "showStatusMenu:",
+                None,
+                STATUS_ITEM_MENU_DELAY_SECONDS,
+            )
+            return
+        self._status_item.popUpStatusItemMenu_(self._menu)
 
 
 class DarwinMenuBarLabel:
@@ -101,14 +170,6 @@ class DarwinMenuBarLabel:
         button.setTitle_("-- --° -- --° --W --W --+ --+")
         self._sync_status_item_length()
 
-        delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
-            {
-                "on_set_refresh": on_set_refresh,
-                "on_toggle_component": on_toggle_component,
-                "on_quit": on_quit,
-            },
-        )
-        self._delegate = delegate
         self._refresh_items: dict[float, NSMenuItem] = {}
         self._component_items: dict[str, NSMenuItem] = {}
 
@@ -122,6 +183,17 @@ class DarwinMenuBarLabel:
         )
         interval_item.setSubmenu_(interval_menu)
         menu.addItem_(interval_item)
+
+        delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
+            {
+                "on_set_refresh": on_set_refresh,
+                "on_toggle_component": on_toggle_component,
+                "on_quit": on_quit,
+                "status_item": self._status_item,
+                "menu": menu,
+            },
+        )
+        self._delegate = delegate
 
         for seconds in REFRESH_INTERVAL_SECONDS:
             option = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -167,7 +239,10 @@ class DarwinMenuBarLabel:
         )
         quit_item.setTarget_(delegate)
         menu.addItem_(quit_item)
-        self._status_item.setMenu_(menu)
+
+        button.setTarget_(delegate)
+        button.setAction_("statusBarButtonClicked:")
+        button.sendActionOn_(NSEventMaskLeftMouseUp | NSEventMaskRightMouseUp)
 
     def set_refresh_interval(self, refresh_seconds: float) -> None:
         """Update the checked refresh interval in the menu."""

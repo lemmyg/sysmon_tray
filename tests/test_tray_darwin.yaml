@@ -85,3 +85,31 @@ status_item_delegate_toggle_component:
     tag: 7
     expected_key: battery_pct
 
+status_item_click_action:
+  - name: single_click
+    click_count: 1
+    button_number: 0
+    expected: menu_delayed
+  - name: double_click
+    click_count: 2
+    button_number: 0
+    expected: activity_monitor
+  - name: right_click
+    click_count: 1
+    button_number: 1
+    expected: menu
+
+status_item_delegate_status_bar_button_clicked:
+  - name: single_click_schedules_menu
+    click_count: 1
+    button_number: 0
+    expected: menu_delayed
+  - name: double_click_launches_activity_monitor
+    click_count: 2
+    button_number: 0
+    expected: activity_monitor
+  - name: right_click_shows_menu
+    click_count: 1
+    button_number: 1
+    expected: menu
+

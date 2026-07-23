@@ -15,9 +15,11 @@ from ..tray_common import (
 )
 from ..tray_darwin import (
     _StatusItemDelegate,
+    ACTIVITY_MONITOR_APP_PATH,
     configure_ns_application,
     format_refresh_interval_label,
     seconds_to_milliseconds,
+    status_item_click_action,
     status_item_length_for_title_width,
 )
 
@@ -26,6 +28,18 @@ def _load_cases() -> dict:
     fixture_path = Path(__file__).with_suffix(".yaml")
     with fixture_path.open(encoding="utf-8") as handle:
         return yaml.safe_load(handle)
+
+
+def _delegate_callbacks(**overrides: object) -> dict[str, object]:
+    callbacks = {
+        "on_set_refresh": MagicMock(),
+        "on_toggle_component": MagicMock(),
+        "on_quit": MagicMock(),
+        "status_item": MagicMock(),
+        "menu": MagicMock(),
+    }
+    callbacks.update(overrides)
+    return callbacks
 
 
 class TestTrayDarwin(unittest.TestCase):
@@ -92,14 +106,67 @@ class TestTrayDarwin(unittest.TestCase):
                     label_component_key_for_tag(case["tag"]),
                 )
 
+    @patch("sysmon_tray.tray_darwin.subprocess.Popen")
+    def test_launch_activity_monitor(self, mock_popen: MagicMock) -> None:
+        from ..tray_darwin import _launch_activity_monitor
+
+        _launch_activity_monitor()
+
+        mock_popen.assert_called_once_with(
+            ["open", "-a", ACTIVITY_MONITOR_APP_PATH],
+            start_new_session=True,
+        )
+
+    def test_status_item_click_action(self) -> None:
+        for case in self.cases["status_item_click_action"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    status_item_click_action(
+                        case["click_count"],
+                        case.get("button_number", 0),
+                    ),
+                )
+
+    def test_status_item_delegate_status_bar_button_clicked(self) -> None:
+        for case in self.cases["status_item_delegate_status_bar_button_clicked"]:
+            with self.subTest(name=case["name"]):
+                status_item = MagicMock()
+                menu = MagicMock()
+                with patch("sysmon_tray.tray_darwin.NSApp") as mock_ns_app, patch(
+                    "sysmon_tray.tray_darwin.NSObject"
+                ) as mock_nsobject, patch(
+                    "sysmon_tray.tray_darwin._launch_activity_monitor",
+                ) as mock_launch:
+                    event = MagicMock()
+                    event.clickCount.return_value = case["click_count"]
+                    event.buttonNumber.return_value = case.get("button_number", 0)
+                    mock_ns_app.currentEvent.return_value = event
+                    delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
+                        _delegate_callbacks(
+                            status_item=status_item,
+                            menu=menu,
+                        ),
+                    )
+
+                    delegate.statusBarButtonClicked_(None)
+
+                    if case["expected"] == "activity_monitor":
+                        mock_launch.assert_called_once_with()
+                        mock_nsobject.cancelPreviousPerformRequestsWithTarget_selector_object_.assert_called()
+                        status_item.popUpStatusItemMenu_.assert_not_called()
+                    elif case["expected"] == "menu_delayed":
+                        mock_launch.assert_not_called()
+                        mock_nsobject.cancelPreviousPerformRequestsWithTarget_selector_object_.assert_called()
+                        status_item.popUpStatusItemMenu_.assert_not_called()
+                    else:
+                        mock_launch.assert_not_called()
+                        status_item.popUpStatusItemMenu_.assert_called_once_with(menu)
+
     def test_status_item_delegate_quit_app(self) -> None:
         on_quit = MagicMock()
         delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
-            {
-                "on_set_refresh": MagicMock(),
-                "on_toggle_component": MagicMock(),
-                "on_quit": on_quit,
-            },
+            _delegate_callbacks(on_quit=on_quit),
         )
 
         delegate.quitApp_(None)
@@ -111,11 +178,7 @@ class TestTrayDarwin(unittest.TestCase):
             with self.subTest(name=case["name"]):
                 on_set_refresh = MagicMock()
                 delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
-                    {
-                        "on_set_refresh": on_set_refresh,
-                        "on_toggle_component": MagicMock(),
-                        "on_quit": MagicMock(),
-                    },
+                    _delegate_callbacks(on_set_refresh=on_set_refresh),
                 )
                 sender = MagicMock()
                 sender.tag.return_value = case["tag_ms"]
@@ -129,11 +192,7 @@ class TestTrayDarwin(unittest.TestCase):
             with self.subTest(name=case["name"]):
                 on_toggle_component = MagicMock()
                 delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
-                    {
-                        "on_set_refresh": MagicMock(),
-                        "on_toggle_component": on_toggle_component,
-                        "on_quit": MagicMock(),
-                    },
+                    _delegate_callbacks(on_toggle_component=on_toggle_component),
                 )
                 sender = MagicMock()
                 sender.tag.return_value = case["tag"]
