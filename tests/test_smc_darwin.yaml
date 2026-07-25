@@ -59,3 +59,29 @@ read_fan_speeds:
       F0Ac: 1200.0
       F1Ac: 0.0
     expected: [1200, 0]
+
+select_temperature:
+  - name: intel_cpu_package
+    readings:
+      TC0P: 50.5
+      TC0E: 56.0
+    preferred_keys: ["TC0P", "TC0E", "TC0F"]
+    expected: 50.5
+  - name: intel_gpu
+    readings:
+      TG0P: 47.2
+    preferred_keys: ["TG0P", "TG0D", "Tg0P"]
+    expected: 47.2
+  - name: missing
+    readings:
+      Ts0P: 36.0
+    preferred_keys: ["TC0P", "TC0E"]
+    expected: null
+
+average_temperatures:
+  - name: cores
+    values: [51.0, 52.0, 50.0]
+    expected: 51.0
+  - name: empty
+    values: []
+    expected: null

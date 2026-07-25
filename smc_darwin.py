@@ -136,6 +136,93 @@ def decode_smc_value(raw: bytes, data_type: int, data_size: int) -> Optional[flo
     return None
 
 
+# Intel Macs use TC*/TG*; Apple Silicon uses Tp*/Tg* (scanned by darwin-perf).
+CPU_TEMP_KEYS = (
+    "TC0P",
+    "TC0E",
+    "TC0F",
+    "Tp0P",
+    "Tp01",
+    "Tp05",
+)
+GPU_TEMP_KEYS = (
+    "TG0P",
+    "TG0D",
+    "Tg0P",
+    "Tg0D",
+)
+CPU_CORE_TEMP_KEYS = tuple(f"TC{index}C" for index in range(1, 9))
+
+
+def select_temperature(
+    readings: dict[str, float],
+    preferred_keys: tuple[str, ...],
+) -> Optional[float]:
+    """Pick the first available temperature from preferred SMC keys.
+
+    Args:
+        readings (dict[str, float]): Map of SMC key to Celsius.
+        preferred_keys (tuple[str, ...]): Keys to try in priority order.
+
+    Returns:
+        float | None: First present reading, or None when none match.
+    """
+    for key in preferred_keys:
+        value = readings.get(key)
+        if value is not None:
+            return float(value)
+    return None
+
+
+def average_temperatures(values: list[float]) -> Optional[float]:
+    """Average a list of Celsius readings.
+
+    Args:
+        values (list[float]): Temperature samples in Celsius.
+
+    Returns:
+        float | None: Mean temperature, or None when the list is empty.
+    """
+    if not values:
+        return None
+    return sum(values) / float(len(values))
+
+
+def read_die_temperatures() -> tuple[Optional[float], Optional[float]]:
+    """Read CPU and GPU die temperatures from AppleSMC.
+
+    Intel Macs expose package/core keys such as ``TC0P`` / ``TG0P``. Apple
+    Silicon typically uses ``Tp*`` / ``Tg*``. When package CPU keys are
+    missing, core keys ``TC1C``..``TC8C`` are averaged as a fallback.
+
+    Returns:
+        tuple[float | None, float | None]: CPU and GPU Celsius readings.
+    """
+    connection = _open_smc_connection()
+    if connection is None:
+        return None, None
+
+    try:
+        cpu_keys = CPU_TEMP_KEYS + CPU_CORE_TEMP_KEYS
+        gpu_keys = GPU_TEMP_KEYS
+        readings: dict[str, float] = {}
+        for key in (*cpu_keys, *gpu_keys):
+            value = _read_smc_key(connection, key)
+            if value is not None and 0.0 < value < 150.0:
+                readings[key] = float(value)
+
+        cpu_celsius = select_temperature(readings, CPU_TEMP_KEYS)
+        if cpu_celsius is None:
+            core_values = [
+                readings[key] for key in CPU_CORE_TEMP_KEYS if key in readings
+            ]
+            cpu_celsius = average_temperatures(core_values)
+        gpu_celsius = select_temperature(readings, GPU_TEMP_KEYS)
+        return cpu_celsius, gpu_celsius
+    finally:
+        IOServiceClose(connection)
+
+
 def read_fan_speeds(max_fans: int = 4) -> list[int]:
     """Read current fan speeds in RPM from AppleSMC.
 
@@ -150,6 +237,32 @@ def read_fan_speeds(max_fans: int = 4) -> list[int]:
     Returns:
         list[int]: Fan speeds in RPM for each present fan, including 0 RPM.
     """
+    connection = _open_smc_connection()
+    if connection is None:
+        return []
+
+    fans: list[int] = []
+    try:
+        fan_count = _read_smc_key(connection, "FNum")
+        count = int(fan_count) if fan_count is not None else max_fans
+        for index in range(count):
+            key = f"F{index}Ac"
+            rpm = _read_smc_key(connection, key)
+            if rpm is None:
+                continue
+            fans.append(int(round(max(0.0, rpm))))
+    finally:
+        IOServiceClose(connection)
+
+    return fans
+
+
+def _open_smc_connection() -> Optional[int]:
+    """Open an IOKit connection to AppleSMC.
+
+    Returns:
+        int | None: Connection handle, or None when AppleSMC is unavailable.
+    """
     iterator = ctypes.c_uint32(0)
     result = IOServiceGetMatchingServices(
         0,
@@ -157,31 +270,17 @@ def read_fan_speeds(max_fans: int = 4) -> list[int]:
         ctypes.byref(iterator),
     )
     if result != 0:
-        return []
+        return None
 
     service = IOIteratorNext(iterator.value)
     if not service:
-        return []
+        return None
 
     connection = ctypes.c_uint32(0)
     result = IOServiceOpen(service, TASK_SELF, 0, ctypes.byref(connection))
     if result != 0:
-        return []
-
-    fans: list[int] = []
-    try:
-        fan_count = _read_smc_key(connection.value, "FNum")
-        count = int(fan_count) if fan_count is not None else max_fans
-        for index in range(count):
-            key = f"F{index}Ac"
-            rpm = _read_smc_key(connection.value, key)
-            if rpm is None:
-                continue
-            fans.append(int(round(max(0.0, rpm))))
-    finally:
-        IOServiceClose(connection.value)
-
-    return fans
+        return None
+    return int(connection.value)
 
 
 def _read_smc_key(connection: int, key: str) -> Optional[float]:

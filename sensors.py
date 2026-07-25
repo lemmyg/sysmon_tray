@@ -178,7 +178,7 @@ def read_sensors() -> SensorSnapshot:
     errors: list[str] = []
 
     try:
-        from darwin_perf import system_gpu_stats, system_stats, temperatures
+        system_gpu_stats, system_stats, temperatures = _darwin_perf_readers()
 
         temps = temperatures()
         cpu_celsius = _optional_float(temps.get("cpu_avg"))
@@ -206,6 +206,26 @@ def read_sensors() -> SensorSnapshot:
         )
     except Exception as exc:
         errors.append(f"sensors: {exc}")
+
+    if cpu_celsius is None or gpu_celsius is None:
+        try:
+            from .smc_darwin import read_die_temperatures
+
+            smc_cpu, smc_gpu = read_die_temperatures()
+            if cpu_celsius is None:
+                cpu_celsius = smc_cpu
+            if gpu_celsius is None:
+                gpu_celsius = smc_gpu
+        except Exception as exc:
+            errors.append(f"smc_temps: {exc}")
+
+    if gpu_util_pct is None:
+        try:
+            from .gpu_darwin import read_device_utilization_pct
+
+            gpu_util_pct = read_device_utilization_pct()
+        except Exception as exc:
+            errors.append(f"gpu_util: {exc}")
 
     try:
         from .smc_darwin import read_fan_speeds
@@ -239,6 +259,35 @@ def read_sensors() -> SensorSnapshot:
         battery_pct=battery_pct,
         error="; ".join(errors) if errors else None,
     )
+
+
+def _darwin_perf_readers():
+    """Return darwin-perf readers, preferring the native module on Intel.
+
+    darwin-perf only wires its native backend on Apple Silicon. On Intel Macs
+    the public API falls back to empty CPU/GPU helpers, while ``_native`` still
+    provides working ``system_stats`` (CPU util and memory).
+
+    Returns:
+        tuple: ``(system_gpu_stats, system_stats, temperatures)`` callables.
+    """
+    import platform
+
+    if platform.system() == "Darwin" and platform.machine() == "x86_64":
+        try:
+            from darwin_perf import _native
+
+            return (
+                _native.system_gpu_stats,
+                _native.system_stats,
+                _native.temperatures,
+            )
+        except ImportError:
+            pass
+
+    from darwin_perf import system_gpu_stats, system_stats, temperatures
+
+    return system_gpu_stats, system_stats, temperatures
 
 
 def memory_speculative_bytes(

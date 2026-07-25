@@ -71,6 +71,32 @@ def milliwatts_to_watts(milliwatts: int) -> float:
     return milliwatts / 1000.0
 
 
+def battery_power_from_voltage_amperage(
+    voltage_mv: Optional[int],
+    amperage_ma: Optional[int],
+) -> Optional[float]:
+    """Compute battery power in watts from millivolt and milliamp readings.
+
+    Intel Macs often leave ``PowerTelemetryData.BatteryPower`` at 0 and instead
+    expose pack ``Voltage`` (mV) and ``InstantAmperage`` (mA). Negative
+    amperage means discharge on AppleSmartBattery.
+
+    Args:
+        voltage_mv (int | None): Pack voltage in millivolts.
+        amperage_ma (int | None): Pack current in milliamps.
+
+    Returns:
+        float | None: Discharge watts when current is negative, 0.0 when
+            charging or idle, or None when inputs are missing.
+    """
+    if voltage_mv is None or amperage_ma is None:
+        return None
+    watts = (float(voltage_mv) * float(amperage_ma)) / 1_000_000.0
+    if watts < 0.0:
+        return -watts
+    return 0.0
+
+
 def battery_discharge_w(
     battery_power_w: Optional[float],
     system_power_w: Optional[float],
@@ -161,9 +187,9 @@ def format_battery_pct_part(battery_pct: Optional[float]) -> Optional[str]:
 def read_system_power_w() -> Optional[float]:
     """Read current total system power draw in watts.
 
-    Uses ``PowerTelemetryData.SystemPowerIn`` from AppleSmartBattery, which is
-    available on Apple Silicon MacBooks. Returns None on desktops or when the
-    telemetry key is missing.
+    Prefers ``PowerTelemetryData.SystemPowerIn`` (Apple Silicon). Falls back to
+    ``BatteryData.SystemPower`` on Intel, then to pack discharge while on
+    battery when no separate system sensor exists.
 
     Returns:
         float | None: Total system power in watts.
@@ -173,6 +199,11 @@ def read_system_power_w() -> Optional[float]:
 
 def read_power_telemetry() -> PowerTelemetry:
     """Read system and battery power telemetry from AppleSmartBattery.
+
+    ``system_power_w`` is main system power draw. ``battery_power_w`` is pack
+    discharge. On Intel Macs while on battery those often match because the
+    only available sensors measure pack output; on Apple Silicon (and on AC)
+    they can diverge.
 
     Returns:
         PowerTelemetry: Latest power readings, with None fields when unavailable.
@@ -186,12 +217,34 @@ def read_power_telemetry() -> PowerTelemetry:
         _read_int_property(service, "CurrentCapacity"),
         _read_int_property(service, "MaxCapacity"),
     )
-    telemetry = _read_registry_object(service, "PowerTelemetryData")
-    if not telemetry:
-        return PowerTelemetry(None, None, external_connected, battery_pct)
 
-    system_power_w = _optional_milliwatts(telemetry.get("SystemPowerIn"))
-    battery_power_w = _optional_milliwatts(telemetry.get("BatteryPower"))
+    system_power_w: Optional[float] = None
+    battery_power_w: Optional[float] = None
+
+    telemetry = _read_registry_object(service, "PowerTelemetryData")
+    if telemetry:
+        system_power_w = _nonzero_milliwatts(telemetry.get("SystemPowerIn"))
+        battery_power_w = _nonzero_milliwatts(telemetry.get("BatteryPower"))
+
+    if battery_power_w is None:
+        battery_power_w = battery_power_from_voltage_amperage(
+            _read_int_property(service, "Voltage"),
+            _read_int_property(service, "InstantAmperage"),
+        )
+
+    if system_power_w is None:
+        battery_data = _read_registry_object(service, "BatteryData") or {}
+        system_power_w = _optional_float(battery_data.get("SystemPower"))
+        if system_power_w is not None and system_power_w <= 0.0:
+            system_power_w = None
+        if system_power_w is None and external_connected is True:
+            adapter_power_w = _optional_float(battery_data.get("AdapterPower"))
+            if adapter_power_w is not None and adapter_power_w > 0.0:
+                system_power_w = adapter_power_w
+
+    if system_power_w is None and external_connected is False:
+        system_power_w = battery_power_w
+
     return PowerTelemetry(
         system_power_w,
         battery_power_w,
@@ -321,3 +374,35 @@ def _optional_milliwatts(value: object) -> Optional[float]:
     if milliwatts < 0:
         milliwatts = abs(milliwatts)
     return milliwatts_to_watts(milliwatts)
+
+
+def _nonzero_milliwatts(value: object) -> Optional[float]:
+    """Convert milliwatts to watts, treating zero as unavailable.
+
+    Args:
+        value (object): Raw milliwatt telemetry value.
+
+    Returns:
+        float | None: Watts when positive, otherwise None.
+    """
+    watts = _optional_milliwatts(value)
+    if watts is None or watts <= 0.0:
+        return None
+    return watts
+
+
+def _optional_float(value: object) -> Optional[float]:
+    """Convert a value to float when it is numeric.
+
+    Args:
+        value (object): Raw registry value.
+
+    Returns:
+        float | None: Parsed float, or None when missing/non-numeric.
+    """
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None

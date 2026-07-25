@@ -1,0 +1,19 @@
+device_utilization_from_performance_statistics:
+  - name: device_utilization
+    stats:
+      "Device Utilization %": 12
+      "Device Unit 0 Utilization %": 40
+    expected: 12.0
+  - name: pstate_fallback
+    stats:
+      "Device Utilization % at cur p-state": 7
+    expected: 7.0
+  - name: unit_max_fallback
+    stats:
+      "Device Unit 0 Utilization %": 5
+      "Device Unit 1 Utilization %": 18
+    expected: 18.0
+  - name: missing
+    stats:
+      orphanedReusableVidMemoryHitRate: 45
+    expected: null

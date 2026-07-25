@@ -10,6 +10,7 @@ import yaml
 from ..power_darwin import (
     battery_discharge_w,
     battery_percent,
+    battery_power_from_voltage_amperage,
     format_battery_pct_part,
     format_battery_power_part,
     milliwatts_to_watts,
@@ -28,6 +29,18 @@ class TestPowerDarwin(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.cases = _load_cases()
+
+    def test_battery_power_from_voltage_amperage(self) -> None:
+        for case in self.cases["battery_power_from_voltage_amperage"]:
+            with self.subTest(name=case["name"]):
+                result = battery_power_from_voltage_amperage(
+                    case["voltage_mv"],
+                    case["amperage_ma"],
+                )
+                if case["expected"] is None:
+                    self.assertIsNone(result)
+                else:
+                    self.assertAlmostEqual(case["expected"], result, places=4)
 
     def test_battery_discharge_w(self) -> None:
         for case in self.cases["battery_discharge_w"]:

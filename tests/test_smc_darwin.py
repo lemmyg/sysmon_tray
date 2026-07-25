@@ -9,7 +9,13 @@ from unittest.mock import patch
 
 import yaml
 
-from ..smc_darwin import decode_smc_value, read_fan_speeds, smc_key_to_uint
+from ..smc_darwin import (
+    average_temperatures,
+    decode_smc_value,
+    read_fan_speeds,
+    select_temperature,
+    smc_key_to_uint,
+)
 
 
 def _load_cases() -> dict:
@@ -58,6 +64,26 @@ class TestSmcDarwin(unittest.TestCase):
                     patch("sysmon_tray.smc_darwin._read_smc_key", side_effect=fake_read),
                 ):
                     self.assertEqual(case["expected"], read_fan_speeds())
+
+    def test_select_temperature(self) -> None:
+        for case in self.cases["select_temperature"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    select_temperature(
+                        case["readings"],
+                        tuple(case["preferred_keys"]),
+                    ),
+                )
+
+    def test_average_temperatures(self) -> None:
+        for case in self.cases["average_temperatures"]:
+            with self.subTest(name=case["name"]):
+                value = average_temperatures(case["values"])
+                if case["expected"] is None:
+                    self.assertIsNone(value)
+                else:
+                    self.assertAlmostEqual(case["expected"], value, places=3)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,24 @@ milliwatts_to_watts:
     milliwatts: 0
     expected: 0.0
 
+battery_power_from_voltage_amperage:
+  - name: discharging
+    voltage_mv: 11209
+    amperage_ma: -1227
+    expected: 13.753443
+  - name: charging
+    voltage_mv: 12600
+    amperage_ma: 1500
+    expected: 0.0
+  - name: missing_voltage
+    voltage_mv: null
+    amperage_ma: -1000
+    expected: null
+  - name: missing_amperage
+    voltage_mv: 11000
+    amperage_ma: null
+    expected: null
+
 battery_discharge_w:
   - name: on_battery_with_reading
     battery_power_w: 8.4
