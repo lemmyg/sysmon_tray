@@ -1,8 +1,12 @@
 # sysmon_tray
 
+<p align="center">
+  <img src="docs/widget.png" alt="Menu bar widget" />
+</p>
+
 Live CPU/GPU temperature and fan-speed monitor for the macOS menu bar.
 
-The label shows compact readings like `c12% | c41C | g36% | g40C | s14W | b8W | b98% | f1351+ | f1455+` (CPU %, CPU °C, GPU %, GPU °C, system W, battery W, battery %, fan RPMs). Hover for details; right-click for Refresh interval and Quit.
+The label shows compact readings like `C6%36° G0%36° M19G52% S8W B0W80% F0+ F0+` (CPU %, CPU °C, GPU %, GPU °C, memory, system power W, battery power W / charge %, fan RPMs). Hover for details; right-click for Refresh interval, Components, and Quit.
 
 ## Requirements
 
