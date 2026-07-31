@@ -7,6 +7,7 @@ merge_label_components:
       gpu_util: true
       gpu_temp: true
       memory: true
+      memory_pct: true
       system_power: true
       battery_power: true
       battery_pct: true
@@ -22,6 +23,7 @@ merge_label_components:
       gpu_util: true
       gpu_temp: true
       memory: true
+      memory_pct: true
       system_power: true
       battery_power: true
       battery_pct: true
@@ -34,6 +36,7 @@ merge_label_components:
       gpu_util: true
       gpu_temp: true
       memory: true
+      memory_pct: true
       system_power: true
       battery_power: true
       battery_pct: true
@@ -48,6 +51,7 @@ load_label_components:
       gpu_util: true
       gpu_temp: true
       memory: true
+      memory_pct: true
       system_power: true
       battery_power: true
       battery_pct: true
@@ -63,6 +67,7 @@ load_label_components:
       gpu_util: true
       gpu_temp: true
       memory: true
+      memory_pct: true
       system_power: true
       battery_power: true
       battery_pct: false
@@ -75,6 +80,7 @@ load_label_components:
       gpu_util: true
       gpu_temp: true
       memory: true
+      memory_pct: true
       system_power: true
       battery_power: true
       battery_pct: true
@@ -97,6 +103,7 @@ save_label_components:
       gpu_util: false
       gpu_temp: true
       memory: true
+      memory_pct: true
       system_power: true
       battery_power: false
       battery_pct: true

@@ -20,6 +20,8 @@ from AppKit import (
     NSMenu,
     NSMenuItem,
     NSStatusBar,
+    NSTextAlignmentCenter,
+    NSTextField,
     NSEventMaskLeftMouseUp,
     NSEventMaskRightMouseUp,
     NSVariableStatusItemLength,
@@ -27,8 +29,10 @@ from AppKit import (
 from Foundation import NSObject
 
 from .tray_common import (
+    ABOUT_MENU_TEXT_WIDTH,
     LABEL_COMPONENTS,
     REFRESH_INTERVAL_SECONDS,
+    format_about_text,
     format_refresh_interval_label,
     is_label_component_enabled,
     label_component_key_for_tag,
@@ -39,7 +43,9 @@ from .tray_common import (
 __all__ = [
     "DarwinMenuBarLabel",
     "REFRESH_INTERVAL_SECONDS",
+    "about_menu_text_field",
     "configure_ns_application",
+    "format_about_text",
     "format_refresh_interval_label",
     "seconds_to_milliseconds",
     "status_item_length_for_title_width",
@@ -85,6 +91,33 @@ def configure_ns_application() -> None:
     with the accessory activation policy or the status item may not appear.
     """
     NSApp.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+
+
+def about_menu_text_field(width: float = ABOUT_MENU_TEXT_WIDTH) -> NSTextField:
+    """Build a single text field for the About submenu.
+
+    Args:
+        width (float): Preferred maximum layout width in points.
+
+    Returns:
+        NSTextField: Non-editable label with the About text block.
+    """
+    field = NSTextField.alloc().initWithFrame_(((0.0, 0.0), (float(width), 1.0)))
+    field.setStringValue_(format_about_text())
+    field.setBezeled_(False)
+    field.setBordered_(False)
+    field.setDrawsBackground_(False)
+    field.setEditable_(False)
+    field.setSelectable_(False)
+    field.setAlignment_(NSTextAlignmentCenter)
+    field.setFont_(NSFont.menuFontOfSize_(0.0))
+    field.setPreferredMaxLayoutWidth_(float(width))
+    cell = field.cell()
+    if cell is not None:
+        cell.setWraps_(True)
+    fitting_size = field.fittingSize()
+    field.setFrameSize_((float(width), float(fitting_size.height)))
+    return field
 
 
 class _StatusItemDelegate(NSObject):
@@ -167,7 +200,7 @@ class DarwinMenuBarLabel:
         if cell is not None:
             cell.setWraps_(False)
             cell.setLineBreakMode_(NSLineBreakByTruncatingTail)
-        button.setTitle_("-- --° -- --° --W --W --+ --+")
+        button.setTitle_("C--%--° G--%--° M--G--% S--W B--W--% F--+ F--+")
         self._sync_status_item_length()
 
         self._refresh_items: dict[float, NSMenuItem] = {}
@@ -197,12 +230,17 @@ class DarwinMenuBarLabel:
 
         for seconds in REFRESH_INTERVAL_SECONDS:
             option = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                format_refresh_interval_label(seconds, selected=seconds == refresh_seconds),
+                format_refresh_interval_label(seconds),
                 "setRefreshInterval:",
                 "",
             )
             option.setTarget_(delegate)
             option.setTag_(seconds_to_milliseconds(seconds))
+            option.setState_(
+                NSControlStateValueOn
+                if seconds == refresh_seconds
+                else NSControlStateValueOff,
+            )
             interval_menu.addItem_(option)
             self._refresh_items[seconds] = option
 
@@ -232,6 +270,17 @@ class DarwinMenuBarLabel:
             self._component_items[key] = option
 
         menu.addItem_(NSMenuItem.separatorItem())
+        about_menu = NSMenu.alloc().init()
+        about_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "About",
+            None,
+            "",
+        )
+        about_item.setSubmenu_(about_menu)
+        menu.addItem_(about_item)
+        about_text_item = NSMenuItem.alloc().init()
+        about_text_item.setView_(about_menu_text_field())
+        about_menu.addItem_(about_text_item)
         quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             "Quit",
             "quitApp:",
@@ -247,8 +296,10 @@ class DarwinMenuBarLabel:
     def set_refresh_interval(self, refresh_seconds: float) -> None:
         """Update the checked refresh interval in the menu."""
         for seconds, item in self._refresh_items.items():
-            item.setTitle_(
-                format_refresh_interval_label(seconds, selected=seconds == refresh_seconds),
+            item.setState_(
+                NSControlStateValueOn
+                if seconds == refresh_seconds
+                else NSControlStateValueOff,
             )
 
     def set_components(self, components: dict[str, bool]) -> None:

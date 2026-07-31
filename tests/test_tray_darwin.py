@@ -10,12 +10,14 @@ import yaml
 
 from ..tray_common import (
     default_label_components,
+    format_about_text,
     label_component_key_for_tag,
     toggle_label_component,
 )
 from ..tray_darwin import (
     _StatusItemDelegate,
     ACTIVITY_MONITOR_APP_PATH,
+    about_menu_text_field,
     configure_ns_application,
     format_refresh_interval_label,
     seconds_to_milliseconds,
@@ -52,11 +54,31 @@ class TestTrayDarwin(unittest.TestCase):
     def test_format_refresh_interval_label(self) -> None:
         for case in self.cases["format_refresh_interval_label"]:
             with self.subTest(name=case["name"]):
-                label = format_refresh_interval_label(
-                    case["seconds"],
-                    selected=case["selected"],
-                )
+                label = format_refresh_interval_label(case["seconds"])
                 self.assertEqual(case["expected"], label)
+
+    def test_format_about_text(self) -> None:
+        for case in self.cases["format_about_text"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(case["expected"], format_about_text())
+
+    @patch("sysmon_tray.tray_darwin.NSTextField")
+    @patch("sysmon_tray.tray_darwin.NSFont")
+    def test_about_menu_text_field(
+        self,
+        mock_ns_font: MagicMock,
+        mock_ns_text_field: MagicMock,
+    ) -> None:
+        field = MagicMock()
+        field.fittingSize.return_value.height = 48.0
+        mock_ns_text_field.alloc.return_value.initWithFrame_.return_value = field
+
+        result = about_menu_text_field(width=280.0)
+
+        self.assertIs(result, field)
+        field.setStringValue_.assert_called_once_with(format_about_text())
+        field.setAlignment_.assert_called_once()
+        field.setFrameSize_.assert_called_once_with((280.0, 48.0))
 
     def test_seconds_to_milliseconds(self) -> None:
         for case in self.cases["seconds_to_milliseconds"]:

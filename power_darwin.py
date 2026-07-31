@@ -134,7 +134,7 @@ def format_battery_power_part(
         system_power_w (float | None): Total system power in watts.
 
     Returns:
-        str | None: Compact label like ``b8W``, or None when unavailable.
+        str | None: Compact label like ``8W``, or None when unavailable.
     """
     discharge_w = battery_discharge_w(
         battery_power_w,
@@ -143,7 +143,7 @@ def format_battery_power_part(
     )
     if discharge_w is None:
         return None
-    return f"b{discharge_w:.0f}W"
+    return f"{discharge_w:.0f}W"
 
 
 def battery_percent(
@@ -177,11 +177,11 @@ def format_battery_pct_part(battery_pct: Optional[float]) -> Optional[str]:
         battery_pct (float | None): Battery charge percentage.
 
     Returns:
-        str | None: Compact label like ``b98%``, or None when unavailable.
+        str | None: Compact label like ``98%``, or None when unavailable.
     """
     if battery_pct is None:
         return None
-    return f"b{battery_pct:.0f}%"
+    return f"{battery_pct:.0f}%"
 
 
 def read_system_power_w() -> Optional[float]:

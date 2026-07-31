@@ -46,17 +46,17 @@ format_battery_power_part:
     battery_power_w: 8.4
     system_power_w: 13.9
     external_connected: false
-    expected: "b8W"
+    expected: "8W"
   - name: on_battery_fallback
     battery_power_w: 0.0
     system_power_w: 13.9
     external_connected: false
-    expected: "b14W"
+    expected: "14W"
   - name: on_ac_idle
     battery_power_w: 0.0
     system_power_w: 13.9
     external_connected: true
-    expected: "b0W"
+    expected: "0W"
   - name: missing_battery
     battery_power_w: null
     system_power_w: 13.9
@@ -84,7 +84,7 @@ battery_percent:
 format_battery_pct_part:
   - name: charged
     battery_pct: 98.0
-    expected: "b98%"
+    expected: "98%"
   - name: missing
     battery_pct: null
     expected: null

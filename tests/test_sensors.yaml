@@ -7,7 +7,7 @@ format_tray_label:
       gpu_util_pct: 36.2
       fan_rpms: [1351, 1455]
       error: null
-    expected: "c12% c41° g36% g40° f1351+ f1455+"
+    expected: "C12%41° G36%40° F1351+ F1455+"
   - name: with_fans_and_power
     snapshot:
       cpu_celsius: 41.2
@@ -18,7 +18,7 @@ format_tray_label:
       system_power_w: 13.9
       external_connected: true
       error: null
-    expected: "c12% c41° g36% g40° s14W b0W f1351+ f1455+"
+    expected: "C12%41° G36%40° S14W B0W F1351+ F1455+"
   - name: with_system_power
     snapshot:
       cpu_celsius: 41.2
@@ -29,7 +29,7 @@ format_tray_label:
       system_power_w: 13.9
       external_connected: true
       error: null
-    expected: "c12% c41° g36% g40° s14W b0W"
+    expected: "C12%41° G36%40° S14W B0W"
   - name: with_battery_power
     snapshot:
       cpu_celsius: 41.2
@@ -41,7 +41,7 @@ format_tray_label:
       battery_power_w: 8.4
       external_connected: false
       error: null
-    expected: "c12% c41° g36% g40° s14W b8W"
+    expected: "C12%41° G36%40° S14W B8W"
   - name: with_battery_pct
     snapshot:
       cpu_celsius: 41.2
@@ -54,7 +54,22 @@ format_tray_label:
       external_connected: false
       battery_pct: 98.0
       error: null
-    expected: "c12% c41° g36% g40° s14W b8W b98% f1351+ f1455+"
+    expected: "C12%41° G36%40° S14W B8W98% F1351+ F1455+"
+  - name: example_format
+    snapshot:
+      cpu_celsius: 37.0
+      gpu_celsius: 37.0
+      cpu_util_pct: 5.0
+      gpu_util_pct: 1.0
+      memory_used_gb: 20.0
+      memory_total_gb: 50.0
+      fan_rpms: [1000, 1000]
+      system_power_w: 9.0
+      battery_power_w: 0.0
+      external_connected: true
+      battery_pct: 80.0
+      error: null
+    expected: "C5%37° G1%37° M20G40% S9W B0W80% F1000+ F1000+"
   - name: fanless
     snapshot:
       cpu_celsius: 35.0
@@ -63,7 +78,7 @@ format_tray_label:
       gpu_util_pct: null
       fan_rpms: []
       error: null
-    expected: "c-- c35° g-- g--"
+    expected: "C--35° G----"
   - name: with_memory
     snapshot:
       cpu_celsius: 41.2
@@ -74,7 +89,7 @@ format_tray_label:
       memory_total_gb: 36.0
       fan_rpms: []
       error: null
-    expected: "c12% c41° g36% g40° m11.5G"
+    expected: "C12%41° G36%40° M12G32%"
   - name: only_temps_enabled
     snapshot:
       cpu_celsius: 41.2
@@ -93,11 +108,12 @@ format_tray_label:
       gpu_util: false
       gpu_temp: true
       memory: false
+      memory_pct: false
       system_power: false
       battery_power: false
       battery_pct: false
       fans: false
-    expected: "c41° g40°"
+    expected: "C41° G40°"
   - name: all_components_disabled
     snapshot:
       cpu_celsius: 41.2
@@ -112,11 +128,106 @@ format_tray_label:
       gpu_util: false
       gpu_temp: false
       memory: false
+      memory_pct: false
       system_power: false
       battery_power: false
       battery_pct: false
       fans: false
     expected: "--"
+
+format_metric_pair_tray_part:
+  - name: both_values
+    prefix: "C"
+    first_value: 5.0
+    first_suffix: "%"
+    show_first: true
+    second_value: 37.0
+    second_suffix: "°"
+    show_second: true
+    expected: "C5%37°"
+  - name: first_only
+    prefix: "G"
+    first_value: 1.0
+    first_suffix: "%"
+    show_first: true
+    second_value: 37.0
+    second_suffix: "°"
+    show_second: false
+    expected: "G1%"
+  - name: second_only
+    prefix: "C"
+    first_value: null
+    first_suffix: "%"
+    show_first: false
+    second_value: 35.0
+    second_suffix: "°"
+    show_second: true
+    expected: "C35°"
+  - name: both_disabled
+    prefix: "C"
+    first_value: 5.0
+    first_suffix: "%"
+    show_first: false
+    second_value: 37.0
+    second_suffix: "°"
+    show_second: false
+    expected: null
+
+format_battery_tray_part:
+  - name: power_and_pct
+    snapshot:
+      cpu_celsius: null
+      gpu_celsius: null
+      cpu_util_pct: null
+      gpu_util_pct: null
+      fan_rpms: []
+      system_power_w: 9.0
+      battery_power_w: 0.0
+      external_connected: true
+      battery_pct: 80.0
+      error: null
+    show_power: true
+    show_pct: true
+    expected: "B0W80%"
+  - name: power_only
+    snapshot:
+      cpu_celsius: null
+      gpu_celsius: null
+      cpu_util_pct: null
+      gpu_util_pct: null
+      fan_rpms: []
+      system_power_w: 13.9
+      battery_power_w: 8.4
+      external_connected: false
+      battery_pct: 98.0
+      error: null
+    show_power: true
+    show_pct: false
+    expected: "B8W"
+  - name: pct_only
+    snapshot:
+      cpu_celsius: null
+      gpu_celsius: null
+      cpu_util_pct: null
+      gpu_util_pct: null
+      fan_rpms: []
+      battery_pct: 80.0
+      error: null
+    show_power: false
+    show_pct: true
+    expected: "B80%"
+  - name: both_disabled
+    snapshot:
+      cpu_celsius: null
+      gpu_celsius: null
+      cpu_util_pct: null
+      gpu_util_pct: null
+      fan_rpms: []
+      battery_pct: 80.0
+      error: null
+    show_power: false
+    show_pct: false
+    expected: null
 
 format_tooltip:
   - name: full_snapshot
@@ -141,7 +252,7 @@ format_tooltip:
       - "Memory: 11.5 / 36.0 GB (32%)"
       - "System power: 13.9 W"
       - "Battery power: 8.4 W"
-      - "Battery: 98%"
+      - "Battery charge: 98%"
       - "Fan 1: 1346 RPM"
       - "Fan 2: 1456 RPM"
   - name: fanless
@@ -222,14 +333,26 @@ memory_bytes_to_gb_pair:
     expected: [null, null]
 
 format_memory_tray_part:
-  - name: one_decimal_gigabytes
+  - name: integer_gigabytes_with_pct
     memory_used_gb: 11.48
     memory_total_gb: 36.0
-    expected: "m11.5G"
-  - name: rounded_gigabytes
-    memory_used_gb: 9.5
-    memory_total_gb: 36.0
-    expected: "m9.5G"
+    expected: "M11G32%"
+  - name: example_format
+    memory_used_gb: 20.0
+    memory_total_gb: 50.0
+    expected: "M20G40%"
+  - name: gb_only
+    memory_used_gb: 20.0
+    memory_total_gb: 50.0
+    show_gb: true
+    show_pct: false
+    expected: "M20G"
+  - name: pct_only
+    memory_used_gb: 20.0
+    memory_total_gb: 50.0
+    show_gb: false
+    show_pct: true
+    expected: "M40%"
   - name: missing_used
     memory_used_gb: null
     memory_total_gb: 36.0

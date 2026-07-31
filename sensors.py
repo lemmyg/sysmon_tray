@@ -38,61 +38,132 @@ def format_tray_label(
             When None, all components are shown.
 
     Returns:
-        str: Text like ``c12% c41° g36% g40° s14W b8W b98% f1351+ f1455+``.
+        str: Text like ``C12%41° G36%40° M12G32% S14W B8W98% F1351+ F1455+``.
     """
     enabled = components if components is not None else default_label_components()
     parts: list[str] = []
-    if is_label_component_enabled(enabled, "cpu_util"):
-        parts.append(
-            f"c{snapshot.cpu_util_pct:.0f}%"
-            if snapshot.cpu_util_pct is not None
-            else "c--"
-        )
-    if is_label_component_enabled(enabled, "cpu_temp"):
-        parts.append(
-            f"c{snapshot.cpu_celsius:.0f}°"
-            if snapshot.cpu_celsius is not None
-            else "c--"
-        )
-    if is_label_component_enabled(enabled, "gpu_util"):
-        parts.append(
-            f"g{snapshot.gpu_util_pct:.0f}%"
-            if snapshot.gpu_util_pct is not None
-            else "g--"
-        )
-    if is_label_component_enabled(enabled, "gpu_temp"):
-        parts.append(
-            f"g{snapshot.gpu_celsius:.0f}°"
-            if snapshot.gpu_celsius is not None
-            else "g--"
-        )
-    if is_label_component_enabled(enabled, "memory"):
-        memory_part = format_memory_tray_part(
-            snapshot.memory_used_gb,
-            snapshot.memory_total_gb,
-        )
-        if memory_part is not None:
-            parts.append(memory_part)
+    cpu_part = format_metric_pair_tray_part(
+        "C",
+        snapshot.cpu_util_pct,
+        "%",
+        is_label_component_enabled(enabled, "cpu_util"),
+        snapshot.cpu_celsius,
+        "°",
+        is_label_component_enabled(enabled, "cpu_temp"),
+    )
+    if cpu_part is not None:
+        parts.append(cpu_part)
+    gpu_part = format_metric_pair_tray_part(
+        "G",
+        snapshot.gpu_util_pct,
+        "%",
+        is_label_component_enabled(enabled, "gpu_util"),
+        snapshot.gpu_celsius,
+        "°",
+        is_label_component_enabled(enabled, "gpu_temp"),
+    )
+    if gpu_part is not None:
+        parts.append(gpu_part)
+    memory_part = format_memory_tray_part(
+        snapshot.memory_used_gb,
+        snapshot.memory_total_gb,
+        show_gb=is_label_component_enabled(enabled, "memory"),
+        show_pct=is_label_component_enabled(enabled, "memory_pct"),
+    )
+    if memory_part is not None:
+        parts.append(memory_part)
     if is_label_component_enabled(enabled, "system_power"):
         if snapshot.system_power_w is not None:
-            parts.append(f"s{snapshot.system_power_w:.0f}W")
-    if is_label_component_enabled(enabled, "battery_power"):
-        battery_part = _format_battery_power_part(snapshot)
-        if battery_part is not None:
-            parts.append(battery_part)
-    if is_label_component_enabled(enabled, "battery_pct"):
-        battery_pct_part = _format_battery_pct_part(snapshot)
-        if battery_pct_part is not None:
-            parts.append(battery_pct_part)
+            parts.append(f"S{snapshot.system_power_w:.0f}W")
+    battery_part = format_battery_tray_part(
+        snapshot,
+        show_power=is_label_component_enabled(enabled, "battery_power"),
+        show_pct=is_label_component_enabled(enabled, "battery_pct"),
+    )
+    if battery_part is not None:
+        parts.append(battery_part)
     if is_label_component_enabled(enabled, "fans") and snapshot.fan_rpms:
-        parts.extend(f"f{rpm}+" for rpm in snapshot.fan_rpms)
+        parts.extend(f"F{rpm}+" for rpm in snapshot.fan_rpms)
     if not parts:
         return "--"
     return " ".join(parts)
 
 
+def format_metric_pair_tray_part(
+    prefix: str,
+    first_value: Optional[float],
+    first_suffix: str,
+    show_first: bool,
+    second_value: Optional[float],
+    second_suffix: str,
+    show_second: bool,
+) -> Optional[str]:
+    """Build a merged tray segment for two related metrics.
+
+    Args:
+        prefix (str): Leading letter for the segment (for example ``C``).
+        first_value (float | None): First metric value.
+        first_suffix (str): Suffix for the first metric (for example ``%``).
+        show_first (bool): Whether the first metric is enabled.
+        second_value (float | None): Second metric value.
+        second_suffix (str): Suffix for the second metric (for example ``°``).
+        show_second (bool): Whether the second metric is enabled.
+
+    Returns:
+        str | None: Text like ``C12%41°``, or None when both metrics are off.
+    """
+    if not show_first and not show_second:
+        return None
+    body = ""
+    if show_first:
+        body += (
+            f"{first_value:.0f}{first_suffix}"
+            if first_value is not None
+            else "--"
+        )
+    if show_second:
+        body += (
+            f"{second_value:.0f}{second_suffix}"
+            if second_value is not None
+            else "--"
+        )
+    return f"{prefix}{body}"
+
+
+def format_battery_tray_part(
+    snapshot: SensorSnapshot,
+    *,
+    show_power: bool,
+    show_pct: bool,
+) -> Optional[str]:
+    """Build the merged battery segment for the tray label.
+
+    Args:
+        snapshot (SensorSnapshot): Latest sensor readings.
+        show_power (bool): Whether battery watts are enabled.
+        show_pct (bool): Whether battery percent is enabled.
+
+    Returns:
+        str | None: Text like ``B8W98%``, or None when nothing is shown.
+    """
+    if not show_power and not show_pct:
+        return None
+    body = ""
+    if show_power:
+        power_part = _format_battery_power_part(snapshot)
+        if power_part is not None:
+            body += power_part
+    if show_pct:
+        pct_part = _format_battery_pct_part(snapshot)
+        if pct_part is not None:
+            body += pct_part
+    if not body:
+        return None
+    return f"B{body}"
+
+
 def _format_battery_power_part(snapshot: SensorSnapshot) -> Optional[str]:
-    """Build the battery power segment for the tray label."""
+    """Build the battery power body for the tray label."""
     from .power_darwin import format_battery_power_part
 
     return format_battery_power_part(
@@ -103,7 +174,7 @@ def _format_battery_power_part(snapshot: SensorSnapshot) -> Optional[str]:
 
 
 def _format_battery_pct_part(snapshot: SensorSnapshot) -> Optional[str]:
-    """Build the battery percentage segment for the tray label."""
+    """Build the battery percentage body for the tray label."""
     from .power_darwin import format_battery_pct_part
 
     return format_battery_pct_part(snapshot.battery_pct)
@@ -147,7 +218,7 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
         if discharge_w is not None:
             lines.append(f"Battery power: {discharge_w:.1f} W")
     if snapshot.battery_pct is not None:
-        lines.append(f"Battery: {snapshot.battery_pct:.0f}%")
+        lines.append(f"Battery charge: {snapshot.battery_pct:.0f}%")
     if snapshot.fan_rpms:
         fan_text = ", ".join(f"Fan {index + 1}: {rpm} RPM" for index, rpm in enumerate(snapshot.fan_rpms))
         lines.append(fan_text)
@@ -382,19 +453,32 @@ def memory_bytes_to_gb_pair(
 def format_memory_tray_part(
     memory_used_gb: Optional[float],
     memory_total_gb: Optional[float],
+    *,
+    show_gb: bool = True,
+    show_pct: bool = True,
 ) -> Optional[str]:
     """Build the used-memory segment for the tray label.
 
     Args:
         memory_used_gb (float | None): Used memory in GiB.
         memory_total_gb (float | None): Total memory in GiB.
+        show_gb (bool): Whether used GiB is enabled.
+        show_pct (bool): Whether used percent is enabled.
 
     Returns:
-        str | None: Text like ``m11.5G`` when used memory is available.
+        str | None: Text like ``M20G40%``, or None when nothing is shown.
     """
-    if memory_used_gb is None or memory_total_gb is None:
+    if not show_gb and not show_pct:
         return None
-    return f"m{memory_used_gb:.1f}G"
+    if memory_used_gb is None or memory_total_gb is None or memory_total_gb <= 0:
+        return None
+    body = ""
+    if show_gb:
+        body += f"{memory_used_gb:.0f}G"
+    if show_pct:
+        memory_used_pct = memory_used_gb / memory_total_gb * 100.0
+        body += f"{memory_used_pct:.0f}%"
+    return f"M{body}"
 
 
 def format_memory_tooltip(

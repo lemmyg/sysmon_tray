@@ -1,20 +1,20 @@
 format_refresh_interval_label:
-  - name: selected_whole_seconds
+  - name: whole_seconds
     seconds: 2.0
-    selected: true
-    expected: "2s *"
-  - name: unselected_whole_seconds
+    expected: "2s"
+  - name: five_seconds
     seconds: 5.0
-    selected: false
     expected: "5s"
   - name: fractional_seconds
     seconds: 2.5
-    selected: false
     expected: "2.5s"
   - name: half_second_label
     seconds: 0.5
-    selected: true
-    expected: "0.5s *"
+    expected: "0.5s"
+
+format_about_text:
+  - name: default_block
+    expected: "sysmon_tray\nMinimalist MacOS system stats widget by lemmyg.\nMIT License."
 
 seconds_to_milliseconds:
   - name: two_seconds
@@ -71,19 +71,25 @@ label_component_key_for_tag:
     tag: 0
     expected: cpu_util
   - name: fans
-    tag: 8
+    tag: 9
     expected: fans
   - name: memory
     tag: 4
     expected: memory
+  - name: memory_pct
+    tag: 5
+    expected: memory_pct
 
 status_item_delegate_toggle_component:
   - name: cpu_temp
     tag: 1
     expected_key: cpu_temp
   - name: battery_pct
-    tag: 7
+    tag: 8
     expected_key: battery_pct
+  - name: memory_pct
+    tag: 5
+    expected_key: memory_pct
 
 status_item_click_action:
   - name: single_click
