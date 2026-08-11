@@ -72,11 +72,38 @@ select_temperature:
       TG0P: 47.2
     preferred_keys: ["TG0P", "TG0D", "Tg0P"]
     expected: 47.2
+  - name: discrete_gpu
+    readings:
+      TG1P: 38.8
+    preferred_keys: ["TG1P", "TG1D", "Tg1P"]
+    expected: 38.8
   - name: missing
     readings:
       Ts0P: 36.0
     preferred_keys: ["TC0P", "TC0E"]
     expected: null
+
+gpu_temperature_keys:
+  - name: first
+    index: 0
+    expected: ["TG0P", "TG0D", "Tg0P", "Tg0D"]
+  - name: second
+    index: 1
+    expected: ["TG1P", "TG1D", "Tg1P", "Tg1D"]
+
+read_gpu_temperatures:
+  - name: two_gpus
+    readings:
+      TG0P: 40.1
+      TG1P: 38.8
+    expected: [40.1, 38.8]
+  - name: first_missing
+    readings:
+      TG1P: 38.8
+    expected: [null, 38.8]
+  - name: none
+    readings: {}
+    expected: []
 
 average_temperatures:
   - name: cores

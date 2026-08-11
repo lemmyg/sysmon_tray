@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication
 
 from .config import load_label_components, save_label_components
 from .sensors import format_tooltip, format_tray_label, read_sensors
-from .tray_common import toggle_label_component
+from .tray_common import ensure_gpu_component_defaults, toggle_label_component
 from .tray_darwin import DarwinMenuBarLabel, seconds_to_milliseconds
 
 
@@ -38,6 +38,10 @@ class TrayMonitorApp:
     def refresh(self) -> None:
         """Poll sensors and update the menu bar label."""
         snapshot = read_sensors()
+        gpu_count = len(snapshot.gpus)
+        self._components = ensure_gpu_component_defaults(self._components, gpu_count)
+        self._darwin_label.set_components(self._components)
+        self._darwin_label.set_gpu_count(gpu_count)
         label = format_tray_label(snapshot, self._components)
         tooltip = format_tooltip(snapshot)
         self._darwin_label.set_label(label)

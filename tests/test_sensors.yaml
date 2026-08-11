@@ -134,6 +134,70 @@ format_tray_label:
       battery_pct: false
       fans: false
     expected: "--"
+  - name: dual_gpus
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 40.1
+      cpu_util_pct: 12.4
+      gpu_util_pct: 6.0
+      fan_rpms: []
+      error: null
+      gpus:
+        - name: Intel UHD Graphics 630
+          util_pct: 6.0
+          celsius: 40.1
+        - name: AMD Radeon Pro 5500M
+          util_pct: null
+          celsius: 38.8
+    expected: "C12%41° G6%40° G0%39°"
+  - name: dual_gpus_temp_only
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 40.1
+      cpu_util_pct: 12.4
+      gpu_util_pct: 6.0
+      fan_rpms: []
+      error: null
+      gpus:
+        - name: Intel UHD Graphics 630
+          util_pct: 6.0
+          celsius: 40.1
+        - name: AMD Radeon Pro 5500M
+          util_pct: null
+          celsius: 38.8
+    components:
+      cpu_util: false
+      cpu_temp: true
+      gpu_util: false
+      gpu_temp: true
+      memory: false
+      memory_pct: false
+      system_power: false
+      battery_power: false
+      battery_pct: false
+      fans: false
+    expected: "C41° G40° G39°"
+  - name: dual_gpus_hide_gpu1
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 40.1
+      cpu_util_pct: 12.4
+      gpu_util_pct: 6.0
+      fan_rpms: []
+      error: null
+      gpus:
+        - name: Intel UHD Graphics 630
+          util_pct: 6.0
+          celsius: 40.1
+        - name: AMD Radeon Pro 5500M
+          util_pct: null
+          celsius: 38.8
+    components:
+      gpu0_util: true
+      gpu0_temp: true
+      gpu1_util: false
+      gpu1_temp: false
+    expected: "C12%41° G6%40°"
 
 format_metric_pair_tray_part:
   - name: both_values
@@ -266,6 +330,84 @@ format_tooltip:
     expected_contains:
       - "CPU: 35.0°C"
       - "Fans: none / fanless"
+  - name: dual_gpus
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 40.1
+      cpu_util_pct: 12.4
+      gpu_util_pct: 6.0
+      fan_rpms: []
+      error: null
+      gpus:
+        - name: Intel UHD Graphics 630
+          util_pct: 6.0
+          celsius: 40.1
+        - name: AMD Radeon Pro 5500M
+          util_pct: null
+          celsius: 38.8
+    expected_contains:
+      - "GPU0 Intel UHD Graphics 630: 40.1°C"
+      - "GPU0 Intel UHD Graphics 630: 6%"
+      - "GPU1 AMD Radeon Pro 5500M: 38.8°C"
+      - "GPU1 AMD Radeon Pro 5500M: 0%"
+
+coalesce_gpu_util_pct:
+  - name: missing_is_zero
+    util_pct: null
+    expected: 0.0
+  - name: reported
+    util_pct: 6.0
+    expected: 6.0
+
+gpu_tray_prefix:
+  - name: first
+    index: 0
+    expected: "GPU0"
+  - name: second
+    index: 1
+    expected: "GPU1"
+
+gpu_tooltip_label:
+  - name: with_name
+    index: 0
+    name: Intel UHD Graphics 630
+    expected: "GPU0 Intel UHD Graphics 630"
+  - name: index_only
+    index: 1
+    name: null
+    expected: "GPU1"
+
+merge_gpu_readings:
+  - name: intel_and_amd
+    devices:
+      - name: Intel UHD Graphics 630
+        util_pct: 6.0
+      - name: AMD Radeon Pro 5500M
+        util_pct: null
+    temperatures: [40.1, 38.8]
+    expected:
+      - name: Intel UHD Graphics 630
+        util_pct: 6.0
+        celsius: 40.1
+      - name: AMD Radeon Pro 5500M
+        util_pct: 0.0
+        celsius: 38.8
+  - name: extra_temp
+    devices:
+      - name: Intel
+        util_pct: 3.0
+    temperatures: [40.0, 38.0]
+    expected:
+      - name: Intel
+        util_pct: 3.0
+        celsius: 40.0
+      - name: GPU1
+        util_pct: null
+        celsius: 38.0
+  - name: empty
+    devices: []
+    temperatures: []
+    expected: []
 
 decode_smc_value:
   - name: float_temperature

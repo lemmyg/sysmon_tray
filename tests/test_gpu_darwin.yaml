@@ -17,3 +17,59 @@ device_utilization_from_performance_statistics:
     stats:
       orphanedReusableVidMemoryHitRate: 45
     expected: null
+  - name: gpu_activity
+    stats:
+      "GPU Activity(%)": 44
+    expected: 44.0
+  - name: amd_activity_over_zero_device
+    stats:
+      "Device Utilization %": 0
+      "GPU Activity(%)": 79
+    expected: 79.0
+  - name: intel_device_preferred
+    stats:
+      "Device Utilization %": 8
+      "Device Utilization % at cur p-state": 30
+    expected: 8.0
+
+decode_registry_model:
+  - name: nul_terminated_bytes
+    value_hex: "496e74656c205548442047726170686963732036333000"
+    expected: "Intel UHD Graphics 630"
+  - name: plain_bytes
+    value_hex: "414d4420526164656f6e2050726f20353530304d"
+    expected: "AMD Radeon Pro 5500M"
+  - name: empty
+    value_hex: ""
+    expected: null
+
+gpu_display_name:
+  - name: model_wins
+    io_class: IntelAccelerator
+    model: Intel UHD Graphics 630
+    expected: Intel UHD Graphics 630
+  - name: intel_class
+    io_class: IntelAccelerator
+    model: null
+    expected: Intel
+  - name: amd_class
+    io_class: AMDRadeonX6000_AMDNavi14GraphicsAccelerator
+    model: null
+    expected: AMD
+  - name: unknown
+    io_class: null
+    model: null
+    expected: GPU
+
+sort_gpu_devices:
+  - name: intel_before_amd
+    devices:
+      - name: AMD Radeon Pro 5500M
+        util_pct: null
+      - name: Intel UHD Graphics 630
+        util_pct: 6.0
+    expected:
+      - name: Intel UHD Graphics 630
+        util_pct: 6.0
+      - name: AMD Radeon Pro 5500M
+        util_pct: null

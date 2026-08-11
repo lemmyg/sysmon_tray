@@ -66,6 +66,171 @@ toggle_label_component:
     expected:
       fans: true
 
+gpu_component_key:
+  - name: first_util
+    index: 0
+    kind: util
+    expected: gpu0_util
+  - name: second_temp
+    index: 1
+    kind: temp
+    expected: gpu1_temp
+
+gpu_component_title:
+  - name: first_util
+    index: 0
+    kind: util
+    expected: "GPU0 %"
+  - name: second_temp
+    index: 1
+    kind: temp
+    expected: "GPU1 °C"
+
+is_gpu_component_key:
+  - name: gpu0_util
+    key: gpu0_util
+    expected: true
+  - name: gpu1_temp
+    key: gpu1_temp
+    expected: true
+  - name: shared_gpu_util
+    key: gpu_util
+    expected: false
+  - name: cpu_util
+    key: cpu_util
+    expected: false
+
+label_components_for_gpu_count:
+  - name: single_keeps_shared
+    gpu_count: 1
+    expected_keys:
+      - cpu_util
+      - cpu_temp
+      - gpu_util
+      - gpu_temp
+      - memory
+      - memory_pct
+      - system_power
+      - battery_power
+      - battery_pct
+      - fans
+    expected_titles:
+      - "CPU %"
+      - "CPU °C"
+      - "GPU %"
+      - "GPU °C"
+      - "Memory GB"
+      - "Memory %"
+      - "System power W"
+      - "Battery power W"
+      - "Battery charge %"
+      - "Fans"
+  - name: dual_expands_gpu0_gpu1
+    gpu_count: 2
+    expected_keys:
+      - cpu_util
+      - cpu_temp
+      - gpu0_util
+      - gpu0_temp
+      - gpu1_util
+      - gpu1_temp
+      - memory
+      - memory_pct
+      - system_power
+      - battery_power
+      - battery_pct
+      - fans
+    expected_titles:
+      - "CPU %"
+      - "CPU °C"
+      - "GPU0 %"
+      - "GPU0 °C"
+      - "GPU1 %"
+      - "GPU1 °C"
+      - "Memory GB"
+      - "Memory %"
+      - "System power W"
+      - "Battery power W"
+      - "Battery charge %"
+      - "Fans"
+
+ensure_gpu_component_defaults:
+  - name: inherit_shared_flags
+    gpu_count: 2
+    components:
+      gpu_util: false
+      gpu_temp: true
+    expected:
+      gpu_util: false
+      gpu_temp: true
+      gpu0_util: false
+      gpu0_temp: true
+      gpu1_util: false
+      gpu1_temp: true
+  - name: keep_existing_per_gpu
+    gpu_count: 2
+    components:
+      gpu_util: true
+      gpu_temp: true
+      gpu1_util: false
+    expected:
+      gpu_util: true
+      gpu_temp: true
+      gpu0_util: true
+      gpu0_temp: true
+      gpu1_util: false
+      gpu1_temp: true
+  - name: single_unchanged
+    gpu_count: 1
+    components:
+      gpu_util: false
+    expected:
+      gpu_util: false
+
+is_gpu_metric_enabled:
+  - name: per_gpu_off
+    index: 1
+    kind: util
+    gpu_count: 2
+    components:
+      gpu_util: true
+      gpu1_util: false
+    expected: false
+  - name: inherit_shared
+    index: 0
+    kind: temp
+    gpu_count: 2
+    components:
+      gpu_temp: false
+    expected: false
+  - name: single_uses_shared
+    index: 0
+    kind: util
+    gpu_count: 1
+    components:
+      gpu_util: true
+    expected: true
+
+persistable_component_keys:
+  - name: shared_plus_gpu
+    components:
+      cpu_util: true
+      gpu0_util: false
+      gpu1_temp: true
+    expected:
+      - cpu_util
+      - cpu_temp
+      - gpu_util
+      - gpu_temp
+      - memory
+      - memory_pct
+      - system_power
+      - battery_power
+      - battery_pct
+      - fans
+      - gpu0_util
+      - gpu1_temp
+
 label_component_key_for_tag:
   - name: cpu_util
     tag: 0

@@ -12,7 +12,9 @@ import yaml
 from ..smc_darwin import (
     average_temperatures,
     decode_smc_value,
+    gpu_temperature_keys,
     read_fan_speeds,
+    read_gpu_temperatures,
     select_temperature,
     smc_key_to_uint,
 )
@@ -75,6 +77,32 @@ class TestSmcDarwin(unittest.TestCase):
                         tuple(case["preferred_keys"]),
                     ),
                 )
+
+    def test_gpu_temperature_keys(self) -> None:
+        for case in self.cases["gpu_temperature_keys"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    tuple(case["expected"]),
+                    gpu_temperature_keys(case["index"]),
+                )
+
+    def test_read_gpu_temperatures(self) -> None:
+        for case in self.cases["read_gpu_temperatures"]:
+            with self.subTest(name=case["name"]):
+                readings = case["readings"]
+
+                def fake_read(_connection: int, key: str, table=readings):
+                    return table.get(key)
+
+                with (
+                    patch("sysmon_tray.smc_darwin.IOServiceMatching", return_value=1),
+                    patch("sysmon_tray.smc_darwin.IOServiceGetMatchingServices", return_value=0),
+                    patch("sysmon_tray.smc_darwin.IOIteratorNext", return_value=42),
+                    patch("sysmon_tray.smc_darwin.IOServiceOpen", return_value=0),
+                    patch("sysmon_tray.smc_darwin.IOServiceClose"),
+                    patch("sysmon_tray.smc_darwin._read_smc_key", side_effect=fake_read),
+                ):
+                    self.assertEqual(case["expected"], read_gpu_temperatures())
 
     def test_average_temperatures(self) -> None:
         for case in self.cases["average_temperatures"]:

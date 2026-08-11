@@ -7,7 +7,12 @@ from typing import Any, Optional
 
 import yaml
 
-from .tray_common import LABEL_COMPONENTS, default_label_components
+from .tray_common import (
+    LABEL_COMPONENTS,
+    default_label_components,
+    is_gpu_component_key,
+    persistable_component_keys,
+)
 
 __all__ = [
     "default_config_path",
@@ -47,6 +52,9 @@ def merge_label_components(raw: Any) -> dict[str, bool]:
     for key, _title in LABEL_COMPONENTS:
         if key in raw:
             components[key] = bool(raw[key])
+    for key, value in raw.items():
+        if is_gpu_component_key(str(key)):
+            components[str(key)] = bool(value)
     return components
 
 
@@ -94,7 +102,8 @@ def save_label_components(
         except (OSError, yaml.YAMLError):
             data = {}
     data["components"] = {
-        key: bool(components.get(key, True)) for key, _title in LABEL_COMPONENTS
+        key: bool(components.get(key, True))
+        for key in persistable_component_keys(components)
     }
     with config_path.open("w", encoding="utf-8") as handle:
         yaml.safe_dump(data, handle, default_flow_style=False, sort_keys=False)

@@ -36,6 +36,7 @@ from .tray_common import (
     format_refresh_interval_label,
     is_label_component_enabled,
     label_component_key_for_tag,
+    label_components_for_gpu_count,
     seconds_to_milliseconds,
     status_item_length_for_title_width,
 )
@@ -132,13 +133,18 @@ class _StatusItemDelegate(NSObject):
         self._on_quit = callbacks["on_quit"]
         self._status_item = callbacks["status_item"]
         self._menu = callbacks["menu"]
+        self._component_keys = [key for key, _title in LABEL_COMPONENTS]
         return self
 
     def setRefreshInterval_(self, sender) -> None:
         self._on_set_refresh(sender.tag() / 1000.0)
 
     def toggleComponent_(self, sender) -> None:
-        self._on_toggle_component(label_component_key_for_tag(int(sender.tag())))
+        tag = int(sender.tag())
+        if 0 <= tag < len(self._component_keys):
+            self._on_toggle_component(self._component_keys[tag])
+            return
+        self._on_toggle_component(label_component_key_for_tag(tag))
 
     def quitApp_(self, sender) -> None:
         self._on_quit()
@@ -205,6 +211,8 @@ class DarwinMenuBarLabel:
 
         self._refresh_items: dict[float, NSMenuItem] = {}
         self._component_items: dict[str, NSMenuItem] = {}
+        self._components = dict(components)
+        self._gpu_count = 1
 
         menu = NSMenu.alloc().init()
 
@@ -252,22 +260,8 @@ class DarwinMenuBarLabel:
         )
         components_item.setSubmenu_(components_menu)
         menu.addItem_(components_item)
-
-        for index, (key, title) in enumerate(LABEL_COMPONENTS):
-            option = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                title,
-                "toggleComponent:",
-                "",
-            )
-            option.setTarget_(delegate)
-            option.setTag_(index)
-            option.setState_(
-                NSControlStateValueOn
-                if is_label_component_enabled(components, key)
-                else NSControlStateValueOff,
-            )
-            components_menu.addItem_(option)
-            self._component_items[key] = option
+        self._components_menu = components_menu
+        self._fill_components_menu()
 
         menu.addItem_(NSMenuItem.separatorItem())
         about_menu = NSMenu.alloc().init()
@@ -308,12 +302,47 @@ class DarwinMenuBarLabel:
         Args:
             components (dict[str, bool]): Component key to enabled flag.
         """
+        self._components = dict(components)
         for key, item in self._component_items.items():
             item.setState_(
                 NSControlStateValueOn
-                if is_label_component_enabled(components, key)
+                if is_label_component_enabled(self._components, key)
                 else NSControlStateValueOff,
             )
+
+    def set_gpu_count(self, gpu_count: int) -> None:
+        """Rebuild the Components menu when the GPU count changes.
+
+        Args:
+            gpu_count (int): Number of detected GPUs.
+        """
+        count = max(1, int(gpu_count))
+        if count == self._gpu_count:
+            return
+        self._gpu_count = count
+        self._fill_components_menu()
+
+    def _fill_components_menu(self) -> None:
+        """Populate the Components submenu for the current GPU count."""
+        self._components_menu.removeAllItems()
+        self._component_items = {}
+        entries = label_components_for_gpu_count(self._gpu_count)
+        self._delegate._component_keys = [key for key, _title in entries]
+        for index, (key, title) in enumerate(entries):
+            option = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                title,
+                "toggleComponent:",
+                "",
+            )
+            option.setTarget_(self._delegate)
+            option.setTag_(index)
+            option.setState_(
+                NSControlStateValueOn
+                if is_label_component_enabled(self._components, key)
+                else NSControlStateValueOff,
+            )
+            self._components_menu.addItem_(option)
+            self._component_items[key] = option
 
     def set_label(self, text: str) -> None:
         """Update the menu bar label text."""

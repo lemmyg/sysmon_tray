@@ -150,8 +150,29 @@ GPU_TEMP_KEYS = (
     "TG0D",
     "Tg0P",
     "Tg0D",
+    "TG1P",
+    "TG1D",
+    "Tg1P",
+    "Tg1D",
 )
 CPU_CORE_TEMP_KEYS = tuple(f"TC{index}C" for index in range(1, 9))
+
+
+def gpu_temperature_keys(index: int) -> tuple[str, ...]:
+    """Return preferred SMC temperature keys for one GPU index.
+
+    Args:
+        index (int): Zero-based GPU index (``0`` is ``TG0*``).
+
+    Returns:
+        tuple[str, ...]: Keys to try in priority order.
+    """
+    return (
+        f"TG{index}P",
+        f"TG{index}D",
+        f"Tg{index}P",
+        f"Tg{index}D",
+    )
 
 
 def select_temperature(
@@ -219,6 +240,43 @@ def read_die_temperatures() -> tuple[Optional[float], Optional[float]]:
             cpu_celsius = average_temperatures(core_values)
         gpu_celsius = select_temperature(readings, GPU_TEMP_KEYS)
         return cpu_celsius, gpu_celsius
+    finally:
+        IOServiceClose(connection)
+
+
+def read_gpu_temperatures(max_gpus: int = 3) -> list[Optional[float]]:
+    """Read per-GPU package temperatures from AppleSMC.
+
+    Keys are grouped by GPU index (``TG0*``, ``TG1*``, ...). Missing sensors
+    keep a ``None`` slot so the list stays aligned with GPU device order.
+
+    Args:
+        max_gpus (int): Highest GPU index to probe, exclusive.
+
+    Returns:
+        list[float | None]: Celsius readings by GPU index, trailing missing
+            slots removed.
+    """
+    connection = _open_smc_connection()
+    if connection is None:
+        return []
+
+    try:
+        readings: dict[str, float] = {}
+        for index in range(max_gpus):
+            for key in gpu_temperature_keys(index):
+                value = _read_smc_key(connection, key)
+                if value is not None and 0.0 < value < 150.0:
+                    readings[key] = float(value)
+
+        temperatures: list[Optional[float]] = []
+        for index in range(max_gpus):
+            temperatures.append(
+                select_temperature(readings, gpu_temperature_keys(index))
+            )
+        while temperatures and temperatures[-1] is None:
+            temperatures.pop()
+        return temperatures
     finally:
         IOServiceClose(connection)
 

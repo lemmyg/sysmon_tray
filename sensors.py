@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
-from .tray_common import default_label_components, is_label_component_enabled
+from .tray_common import (
+    default_label_components,
+    is_gpu_metric_enabled,
+    is_label_component_enabled,
+)
+
+
+@dataclass(frozen=True)
+class GpuReading:
+    """One GPU name, utilization, and temperature sample."""
+
+    name: str
+    util_pct: Optional[float] = None
+    celsius: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -24,6 +37,7 @@ class SensorSnapshot:
     external_connected: Optional[bool] = None
     battery_pct: Optional[float] = None
     error: Optional[str] = None
+    gpus: list[GpuReading] = field(default_factory=list)
 
 
 def format_tray_label(
@@ -39,6 +53,7 @@ def format_tray_label(
 
     Returns:
         str: Text like ``C12%41° G36%40° M12G32% S14W B8W98% F1351+ F1455+``.
+            Dual-GPU machines repeat ``G`` for each GPU.
     """
     enabled = components if components is not None else default_label_components()
     parts: list[str] = []
@@ -53,17 +68,32 @@ def format_tray_label(
     )
     if cpu_part is not None:
         parts.append(cpu_part)
-    gpu_part = format_metric_pair_tray_part(
-        "G",
-        snapshot.gpu_util_pct,
-        "%",
-        is_label_component_enabled(enabled, "gpu_util"),
-        snapshot.gpu_celsius,
-        "°",
-        is_label_component_enabled(enabled, "gpu_temp"),
-    )
-    if gpu_part is not None:
-        parts.append(gpu_part)
+    gpu_count = len(snapshot.gpus)
+    if gpu_count > 1:
+        for index, gpu in enumerate(snapshot.gpus):
+            gpu_part = format_metric_pair_tray_part(
+                "G",
+                coalesce_gpu_util_pct(gpu.util_pct),
+                "%",
+                is_gpu_metric_enabled(enabled, index, "util", gpu_count),
+                gpu.celsius,
+                "°",
+                is_gpu_metric_enabled(enabled, index, "temp", gpu_count),
+            )
+            if gpu_part is not None:
+                parts.append(gpu_part)
+    else:
+        gpu_part = format_metric_pair_tray_part(
+            "G",
+            snapshot.gpu_util_pct,
+            "%",
+            is_label_component_enabled(enabled, "gpu_util"),
+            snapshot.gpu_celsius,
+            "°",
+            is_label_component_enabled(enabled, "gpu_temp"),
+        )
+        if gpu_part is not None:
+            parts.append(gpu_part)
     memory_part = format_memory_tray_part(
         snapshot.memory_used_gb,
         snapshot.memory_total_gb,
@@ -130,6 +160,64 @@ def format_metric_pair_tray_part(
     return f"{prefix}{body}"
 
 
+def gpu_tray_prefix(index: int) -> str:
+    """Return the tray prefix for one GPU index.
+
+    Args:
+        index (int): Zero-based GPU index.
+
+    Returns:
+        str: Text like ``GPU0``.
+    """
+    return f"GPU{index}"
+
+
+def coalesce_gpu_util_pct(util_pct: Optional[float]) -> float:
+    """Return GPU utilization, using 0 when the driver omits a reading.
+
+    Intel iGPUs publish ``Device Utilization %``. AMD dGPUs on Intel Macs
+    often omit that key while idle, which would otherwise show as ``--``.
+
+    Args:
+        util_pct (float | None): Reported utilization, or None when missing.
+
+    Returns:
+        float: Utilization from 0 to 100.
+    """
+    if util_pct is None:
+        return 0.0
+    return float(util_pct)
+
+
+def merge_gpu_readings(
+    devices: list[GpuReading],
+    temperatures: list[Optional[float]],
+) -> list[GpuReading]:
+    """Pair GPU devices with SMC temperatures by index.
+
+    Args:
+        devices (list[GpuReading]): Named GPUs with utilization.
+        temperatures (list[float | None]): Celsius readings aligned to GPU
+            index (``TG0*``, ``TG1*``, ...).
+
+    Returns:
+        list[GpuReading]: Combined per-GPU samples.
+    """
+    count = max(len(devices), len(temperatures))
+    readings: list[GpuReading] = []
+    for index in range(count):
+        device = devices[index] if index < len(devices) else None
+        temp = temperatures[index] if index < len(temperatures) else None
+        if device is None and temp is None:
+            continue
+        name = device.name if device is not None else gpu_tray_prefix(index)
+        util_pct = (
+            coalesce_gpu_util_pct(device.util_pct) if device is not None else None
+        )
+        readings.append(GpuReading(name=name, util_pct=util_pct, celsius=temp))
+    return readings
+
+
 def format_battery_tray_part(
     snapshot: SensorSnapshot,
     *,
@@ -194,10 +282,17 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
         lines.append(f"CPU: {snapshot.cpu_celsius:.1f}°C")
     if snapshot.cpu_util_pct is not None:
         lines.append(f"CPU: {snapshot.cpu_util_pct:.0f}%")
-    if snapshot.gpu_celsius is not None:
-        lines.append(f"GPU: {snapshot.gpu_celsius:.1f}°C")
-    if snapshot.gpu_util_pct is not None:
-        lines.append(f"GPU: {snapshot.gpu_util_pct:.0f}%")
+    if len(snapshot.gpus) > 1:
+        for index, gpu in enumerate(snapshot.gpus):
+            label = gpu_tooltip_label(index, gpu.name)
+            if gpu.celsius is not None:
+                lines.append(f"{label}: {gpu.celsius:.1f}°C")
+            lines.append(f"{label}: {coalesce_gpu_util_pct(gpu.util_pct):.0f}%")
+    else:
+        if snapshot.gpu_celsius is not None:
+            lines.append(f"GPU: {snapshot.gpu_celsius:.1f}°C")
+        if snapshot.gpu_util_pct is not None:
+            lines.append(f"GPU: {snapshot.gpu_util_pct:.0f}%")
     memory_tooltip = format_memory_tooltip(
         snapshot.memory_used_gb,
         snapshot.memory_total_gb,
@@ -227,6 +322,22 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
     if snapshot.error:
         lines.append(f"Warning: {snapshot.error}")
     return "\n".join(lines)
+
+
+def gpu_tooltip_label(index: int, name: Optional[str]) -> str:
+    """Build a tooltip GPU label such as ``GPU0 Intel UHD Graphics 630``.
+
+    Args:
+        index (int): Zero-based GPU index.
+        name (str | None): Optional model name.
+
+    Returns:
+        str: Tooltip label prefix before the metric value.
+    """
+    prefix = gpu_tray_prefix(index)
+    if name:
+        return f"{prefix} {name}"
+    return prefix
 
 
 def read_sensors() -> SensorSnapshot:
@@ -290,13 +401,35 @@ def read_sensors() -> SensorSnapshot:
         except Exception as exc:
             errors.append(f"smc_temps: {exc}")
 
-    if gpu_util_pct is None:
-        try:
-            from .gpu_darwin import read_device_utilization_pct
+    gpu_devices: list[GpuReading] = []
+    try:
+        from .gpu_darwin import read_gpu_devices
 
-            gpu_util_pct = read_device_utilization_pct()
-        except Exception as exc:
-            errors.append(f"gpu_util: {exc}")
+        gpu_devices = [
+            GpuReading(name=device.name, util_pct=device.util_pct)
+            for device in read_gpu_devices()
+        ]
+    except Exception as exc:
+        errors.append(f"gpu_util: {exc}")
+
+    gpu_temps: list[Optional[float]] = []
+    try:
+        from .smc_darwin import read_gpu_temperatures
+
+        gpu_temps = read_gpu_temperatures()
+    except Exception as exc:
+        errors.append(f"smc_gpu_temps: {exc}")
+
+    gpus = merge_gpu_readings(gpu_devices, gpu_temps)
+    if gpu_util_pct is None:
+        util_values = [gpu.util_pct for gpu in gpus if gpu.util_pct is not None]
+        if util_values:
+            gpu_util_pct = max(util_values)
+    if gpu_celsius is None:
+        for gpu in gpus:
+            if gpu.celsius is not None:
+                gpu_celsius = gpu.celsius
+                break
 
     try:
         from .smc_darwin import read_fan_speeds
@@ -329,6 +462,7 @@ def read_sensors() -> SensorSnapshot:
         external_connected=external_connected,
         battery_pct=battery_pct,
         error="; ".join(errors) if errors else None,
+        gpus=gpus,
     )
 
 

@@ -28,6 +28,23 @@ merge_label_components:
       battery_power: true
       battery_pct: true
       fans: false
+  - name: keeps_per_gpu_flags
+    raw:
+      gpu0_util: false
+      gpu1_temp: false
+    expected:
+      cpu_util: true
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      memory: true
+      memory_pct: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: true
+      gpu0_util: false
+      gpu1_temp: false
   - name: invalid_type_uses_defaults
     raw: "not-a-map"
     expected:
@@ -108,3 +125,34 @@ save_label_components:
       battery_power: false
       battery_pct: true
       fans: false
+  - name: roundtrip_per_gpu
+    components:
+      cpu_util: true
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      memory: true
+      memory_pct: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: true
+      gpu0_util: false
+      gpu0_temp: true
+      gpu1_util: true
+      gpu1_temp: false
+    expected:
+      cpu_util: true
+      cpu_temp: true
+      gpu_util: true
+      gpu_temp: true
+      memory: true
+      memory_pct: true
+      system_power: true
+      battery_power: true
+      battery_pct: true
+      fans: true
+      gpu0_util: false
+      gpu0_temp: true
+      gpu1_util: true
+      gpu1_temp: false

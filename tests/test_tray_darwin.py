@@ -10,8 +10,15 @@ import yaml
 
 from ..tray_common import (
     default_label_components,
+    ensure_gpu_component_defaults,
     format_about_text,
+    gpu_component_key,
+    gpu_component_title,
+    is_gpu_component_key,
+    is_gpu_metric_enabled,
     label_component_key_for_tag,
+    label_components_for_gpu_count,
+    persistable_component_keys,
     toggle_label_component,
 )
 from ..tray_darwin import (
@@ -118,6 +125,69 @@ class TestTrayDarwin(unittest.TestCase):
                 self.assertEqual(
                     case["expected"],
                     toggle_label_component(case["components"], case["key"]),
+                )
+
+    def test_gpu_component_key(self) -> None:
+        for case in self.cases["gpu_component_key"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    gpu_component_key(case["index"], case["kind"]),
+                )
+
+    def test_gpu_component_title(self) -> None:
+        for case in self.cases["gpu_component_title"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    gpu_component_title(case["index"], case["kind"]),
+                )
+
+    def test_is_gpu_component_key(self) -> None:
+        for case in self.cases["is_gpu_component_key"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    is_gpu_component_key(case["key"]),
+                )
+
+    def test_label_components_for_gpu_count(self) -> None:
+        for case in self.cases["label_components_for_gpu_count"]:
+            with self.subTest(name=case["name"]):
+                entries = label_components_for_gpu_count(case["gpu_count"])
+                self.assertEqual(case["expected_keys"], [key for key, _title in entries])
+                self.assertEqual(
+                    case["expected_titles"],
+                    [title for _key, title in entries],
+                )
+
+    def test_ensure_gpu_component_defaults(self) -> None:
+        for case in self.cases["ensure_gpu_component_defaults"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    ensure_gpu_component_defaults(case["components"], case["gpu_count"]),
+                )
+
+    def test_is_gpu_metric_enabled(self) -> None:
+        for case in self.cases["is_gpu_metric_enabled"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    is_gpu_metric_enabled(
+                        case["components"],
+                        case["index"],
+                        case["kind"],
+                        case["gpu_count"],
+                    ),
+                )
+
+    def test_persistable_component_keys(self) -> None:
+        for case in self.cases["persistable_component_keys"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    persistable_component_keys(case["components"]),
                 )
 
     def test_label_component_key_for_tag(self) -> None:

@@ -8,6 +8,7 @@ from pathlib import Path
 import yaml
 
 from ..sensors import (
+    GpuReading,
     SensorSnapshot,
     format_battery_tray_part,
     format_memory_tooltip,
@@ -15,10 +16,14 @@ from ..sensors import (
     format_metric_pair_tray_part,
     format_tooltip,
     format_tray_label,
+    coalesce_gpu_util_pct,
+    gpu_tooltip_label,
+    gpu_tray_prefix,
     memory_bytes_to_gb,
     memory_bytes_to_gb_pair,
     memory_speculative_bytes,
     memory_used_bytes_from_stats,
+    merge_gpu_readings,
 )
 from ..smc_darwin import decode_smc_value, smc_key_to_uint
 
@@ -27,6 +32,13 @@ def _load_cases() -> dict:
     fixture_path = Path(__file__).with_suffix(".yaml")
     with fixture_path.open(encoding="utf-8") as handle:
         return yaml.safe_load(handle)
+
+
+def _snapshot_from_case(raw: dict) -> SensorSnapshot:
+    data = dict(raw)
+    if "gpus" in data:
+        data["gpus"] = [GpuReading(**gpu) for gpu in data["gpus"]]
+    return SensorSnapshot(**data)
 
 
 class TestSensors(unittest.TestCase):
@@ -39,7 +51,7 @@ class TestSensors(unittest.TestCase):
     def test_format_tray_label(self) -> None:
         for case in self.cases["format_tray_label"]:
             with self.subTest(name=case["name"]):
-                snapshot = SensorSnapshot(**case["snapshot"])
+                snapshot = _snapshot_from_case(case["snapshot"])
                 components = case.get("components")
                 if components is None:
                     label = format_tray_label(snapshot)
@@ -66,7 +78,7 @@ class TestSensors(unittest.TestCase):
     def test_format_battery_tray_part(self) -> None:
         for case in self.cases["format_battery_tray_part"]:
             with self.subTest(name=case["name"]):
-                snapshot = SensorSnapshot(**case["snapshot"])
+                snapshot = _snapshot_from_case(case["snapshot"])
                 self.assertEqual(
                     case["expected"],
                     format_battery_tray_part(
@@ -79,10 +91,48 @@ class TestSensors(unittest.TestCase):
     def test_format_tooltip(self) -> None:
         for case in self.cases["format_tooltip"]:
             with self.subTest(name=case["name"]):
-                snapshot = SensorSnapshot(**case["snapshot"])
+                snapshot = _snapshot_from_case(case["snapshot"])
                 tooltip = format_tooltip(snapshot)
                 for expected in case["expected_contains"]:
                     self.assertIn(expected, tooltip)
+
+    def test_coalesce_gpu_util_pct(self) -> None:
+        for case in self.cases["coalesce_gpu_util_pct"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    coalesce_gpu_util_pct(case.get("util_pct")),
+                )
+
+    def test_gpu_tray_prefix(self) -> None:
+        for case in self.cases["gpu_tray_prefix"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(case["expected"], gpu_tray_prefix(case["index"]))
+
+    def test_gpu_tooltip_label(self) -> None:
+        for case in self.cases["gpu_tooltip_label"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    gpu_tooltip_label(case["index"], case.get("name")),
+                )
+
+    def test_merge_gpu_readings(self) -> None:
+        for case in self.cases["merge_gpu_readings"]:
+            with self.subTest(name=case["name"]):
+                devices = [GpuReading(**device) for device in case["devices"]]
+                readings = merge_gpu_readings(devices, case["temperatures"])
+                self.assertEqual(
+                    case["expected"],
+                    [
+                        {
+                            "name": reading.name,
+                            "util_pct": reading.util_pct,
+                            "celsius": reading.celsius,
+                        }
+                        for reading in readings
+                    ],
+                )
 
     def test_decode_smc_value(self) -> None:
         for case in self.cases["decode_smc_value"]:
