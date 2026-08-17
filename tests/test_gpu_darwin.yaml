@@ -73,3 +73,42 @@ sort_gpu_devices:
         util_pct: 6.0
       - name: AMD Radeon Pro 5500M
         util_pct: null
+
+is_gpu_accelerator:
+  - name: intel
+    io_class: IntelAccelerator
+    expected: true
+  - name: apple
+    io_class: AGXAcceleratorG17X
+    expected: true
+  - name: amd
+    io_class: AMDRadeonX6000_AMDNavi14GraphicsAccelerator
+    expected: true
+  - name: user_client
+    io_class: AGXDeviceUserClient
+    expected: false
+  - name: missing
+    io_class: null
+    expected: false
+
+unique_gpu_devices:
+  - name: drop_duplicate_name
+    devices:
+      - name: Apple M5 Max
+        util_pct: null
+      - name: Apple M5 Max
+        util_pct: 4.0
+    expected:
+      - name: Apple M5 Max
+        util_pct: 4.0
+  - name: keep_distinct_gpus
+    devices:
+      - name: AMD Radeon Pro 5500M
+        util_pct: null
+      - name: Intel UHD Graphics 630
+        util_pct: 6.0
+    expected:
+      - name: Intel UHD Graphics 630
+        util_pct: 6.0
+      - name: AMD Radeon Pro 5500M
+        util_pct: null

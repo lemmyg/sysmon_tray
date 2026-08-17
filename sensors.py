@@ -193,7 +193,10 @@ def merge_gpu_readings(
     devices: list[GpuReading],
     temperatures: list[Optional[float]],
 ) -> list[GpuReading]:
-    """Pair GPU devices with SMC temperatures by index.
+    """Pair detected GPU devices with SMC temperatures by index.
+
+    Extra temperature slots without a matching device are ignored so a
+    single-GPU machine is not shown as GPU0/GPU1.
 
     Args:
         devices (list[GpuReading]): Named GPUs with utilization.
@@ -201,20 +204,18 @@ def merge_gpu_readings(
             index (``TG0*``, ``TG1*``, ...).
 
     Returns:
-        list[GpuReading]: Combined per-GPU samples.
+        list[GpuReading]: Combined samples for available GPUs only.
     """
-    count = max(len(devices), len(temperatures))
     readings: list[GpuReading] = []
-    for index in range(count):
-        device = devices[index] if index < len(devices) else None
+    for index, device in enumerate(devices):
         temp = temperatures[index] if index < len(temperatures) else None
-        if device is None and temp is None:
-            continue
-        name = device.name if device is not None else gpu_tray_prefix(index)
-        util_pct = (
-            coalesce_gpu_util_pct(device.util_pct) if device is not None else None
+        readings.append(
+            GpuReading(
+                name=device.name,
+                util_pct=coalesce_gpu_util_pct(device.util_pct),
+                celsius=temp,
+            )
         )
-        readings.append(GpuReading(name=name, util_pct=util_pct, celsius=temp))
     return readings
 
 
@@ -413,12 +414,13 @@ def read_sensors() -> SensorSnapshot:
         errors.append(f"gpu_util: {exc}")
 
     gpu_temps: list[Optional[float]] = []
-    try:
-        from .smc_darwin import read_gpu_temperatures
+    if gpu_devices:
+        try:
+            from .smc_darwin import read_gpu_temperatures
 
-        gpu_temps = read_gpu_temperatures()
-    except Exception as exc:
-        errors.append(f"smc_gpu_temps: {exc}")
+            gpu_temps = read_gpu_temperatures(max_gpus=len(gpu_devices))
+        except Exception as exc:
+            errors.append(f"smc_gpu_temps: {exc}")
 
     gpus = merge_gpu_readings(gpu_devices, gpu_temps)
     if gpu_util_pct is None:

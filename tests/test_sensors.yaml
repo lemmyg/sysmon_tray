@@ -401,9 +401,10 @@ merge_gpu_readings:
       - name: Intel
         util_pct: 3.0
         celsius: 40.0
-      - name: GPU1
-        util_pct: null
-        celsius: 38.0
+  - name: temps_without_devices
+    devices: []
+    temperatures: [40.0, 38.0]
+    expected: []
   - name: empty
     devices: []
     temperatures: []

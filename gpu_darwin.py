@@ -175,6 +175,43 @@ def gpu_display_name(io_class: Optional[str], model: Optional[str]) -> str:
     return "GPU"
 
 
+def is_gpu_accelerator(io_class: Optional[str]) -> bool:
+    """Return whether an IOKit class is a real GPU accelerator.
+
+    ``IOAccelerator`` matching can include user clients and other children
+    that are not GPUs.
+
+    Args:
+        io_class (str | None): IOKit class name.
+
+    Returns:
+        bool: True for classes like ``IntelAccelerator`` or ``AGXAcceleratorG17X``.
+    """
+    lowered = (io_class or "").lower()
+    if not lowered or "userclient" in lowered:
+        return False
+    return "accelerator" in lowered
+
+
+def unique_gpu_devices(devices: list[GpuDevice]) -> list[GpuDevice]:
+    """Keep one device per GPU name, preferring a utilization reading.
+
+    Args:
+        devices (list[GpuDevice]): Possibly duplicated IOAccelerator devices.
+
+    Returns:
+        list[GpuDevice]: Unique GPUs, Intel first when present.
+    """
+    by_name: dict[str, GpuDevice] = {}
+    for device in devices:
+        existing = by_name.get(device.name)
+        if existing is None or (
+            existing.util_pct is None and device.util_pct is not None
+        ):
+            by_name[device.name] = device
+    return sort_gpu_devices(list(by_name.values()))
+
+
 def sort_gpu_devices(devices: list[GpuDevice]) -> list[GpuDevice]:
     """Sort GPUs so Intel integrated comes before discrete AMD/NVIDIA.
 
@@ -190,7 +227,10 @@ def sort_gpu_devices(devices: list[GpuDevice]) -> list[GpuDevice]:
 
 
 def read_gpu_devices() -> list[GpuDevice]:
-    """Read each IOAccelerator GPU name and utilization.
+    """Read each available IOAccelerator GPU name and utilization.
+
+    User clients and duplicate names are omitted so one physical GPU is
+    listed once.
 
     Returns:
         list[GpuDevice]: Detected GPUs, Intel first when present.
@@ -213,6 +253,8 @@ def read_gpu_devices() -> list[GpuDevice]:
             io_class = _read_registry_string(service, "IOClass") or _object_class_name(
                 service
             )
+            if not is_gpu_accelerator(io_class):
+                continue
             model = _read_registry_string(service, "model") or _parent_model(service)
             stats = _read_registry_object(service, "PerformanceStatistics") or {}
             devices.append(
@@ -223,7 +265,7 @@ def read_gpu_devices() -> list[GpuDevice]:
             )
     finally:
         IOObjectRelease(iterator.value)
-    return sort_gpu_devices(devices)
+    return unique_gpu_devices(devices)
 
 
 def read_device_utilization_pct() -> Optional[float]:

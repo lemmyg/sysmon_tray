@@ -12,7 +12,9 @@ from ..gpu_darwin import (
     decode_registry_model,
     device_utilization_from_performance_statistics,
     gpu_display_name,
+    is_gpu_accelerator,
     sort_gpu_devices,
+    unique_gpu_devices,
 )
 
 
@@ -66,6 +68,27 @@ class TestGpuDarwin(unittest.TestCase):
                     [
                         {"name": device.name, "util_pct": device.util_pct}
                         for device in sorted_devices
+                    ],
+                )
+
+    def test_is_gpu_accelerator(self) -> None:
+        for case in self.cases["is_gpu_accelerator"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    is_gpu_accelerator(case.get("io_class")),
+                )
+
+    def test_unique_gpu_devices(self) -> None:
+        for case in self.cases["unique_gpu_devices"]:
+            with self.subTest(name=case["name"]):
+                devices = [GpuDevice(**device) for device in case["devices"]]
+                unique_devices = unique_gpu_devices(devices)
+                self.assertEqual(
+                    case["expected"],
+                    [
+                        {"name": device.name, "util_pct": device.util_pct}
+                        for device in unique_devices
                     ],
                 )
 
