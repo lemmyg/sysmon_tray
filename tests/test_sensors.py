@@ -8,14 +8,21 @@ from pathlib import Path
 import yaml
 
 from ..sensors import (
+    GpuCoreCount,
     GpuReading,
     SensorSnapshot,
     format_battery_tray_part,
+    format_chip_tooltip,
+    format_disk_name_tooltip,
+    format_disk_tray_part,
+    format_disk_usage_tooltip,
+    format_gpu_util_cores_tooltips,
     format_memory_tooltip,
     format_memory_tray_part,
     format_metric_pair_tray_part,
     format_tooltip,
     format_tray_label,
+    format_util_cores_tooltip,
     coalesce_gpu_util_pct,
     gpu_tooltip_label,
     gpu_tray_prefix,
@@ -38,6 +45,10 @@ def _snapshot_from_case(raw: dict) -> SensorSnapshot:
     data = dict(raw)
     if "gpus" in data:
         data["gpus"] = [GpuReading(**gpu) for gpu in data["gpus"]]
+    if "gpu_core_counts" in data:
+        data["gpu_core_counts"] = [
+            GpuCoreCount(**gpu) for gpu in data["gpu_core_counts"]
+        ]
     return SensorSnapshot(**data)
 
 
@@ -95,6 +106,66 @@ class TestSensors(unittest.TestCase):
                 tooltip = format_tooltip(snapshot)
                 for expected in case["expected_contains"]:
                     self.assertIn(expected, tooltip)
+                first_line = case.get("expected_first_line")
+                if first_line is not None:
+                    self.assertEqual(first_line, tooltip.split("\n", 1)[0])
+
+    def test_format_chip_tooltip(self) -> None:
+        for case in self.cases["format_chip_tooltip"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_chip_tooltip(case.get("chip_name")),
+                )
+
+    def test_format_disk_name_tooltip(self) -> None:
+        for case in self.cases["format_disk_name_tooltip"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_disk_name_tooltip(case.get("medium"), case.get("name")),
+                )
+
+    def test_format_disk_usage_tooltip(self) -> None:
+        for case in self.cases["format_disk_usage_tooltip"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_disk_usage_tooltip(
+                        case.get("disk_used_gb"),
+                        case.get("disk_total_gb"),
+                    ),
+                )
+
+    def test_format_util_cores_tooltip(self) -> None:
+        for case in self.cases["format_util_cores_tooltip"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_util_cores_tooltip(
+                        case["prefix"],
+                        case.get("util_pct"),
+                        case.get("cores"),
+                        case.get("celsius"),
+                    ),
+                )
+
+    def test_format_gpu_util_cores_tooltips(self) -> None:
+        for case in self.cases["format_gpu_util_cores_tooltips"]:
+            with self.subTest(name=case["name"]):
+                gpus = [GpuReading(**gpu) for gpu in case.get("gpus", [])]
+                cores = [
+                    GpuCoreCount(**gpu) for gpu in case.get("gpu_core_counts", [])
+                ]
+                self.assertEqual(
+                    case["expected"],
+                    format_gpu_util_cores_tooltips(
+                        gpus,
+                        cores,
+                        case.get("gpu_util_pct"),
+                        case.get("gpu_celsius"),
+                    ),
+                )
 
     def test_coalesce_gpu_util_pct(self) -> None:
         for case in self.cases["coalesce_gpu_util_pct"]:
@@ -197,6 +268,19 @@ class TestSensors(unittest.TestCase):
                     format_memory_tray_part(
                         case.get("memory_used_gb"),
                         case.get("memory_total_gb"),
+                        show_gb=case.get("show_gb", True),
+                        show_pct=case.get("show_pct", True),
+                    ),
+                )
+
+    def test_format_disk_tray_part(self) -> None:
+        for case in self.cases["format_disk_tray_part"]:
+            with self.subTest(name=case["name"]):
+                self.assertEqual(
+                    case["expected"],
+                    format_disk_tray_part(
+                        case.get("disk_used_gb"),
+                        case.get("disk_total_gb"),
                         show_gb=case.get("show_gb", True),
                         show_pct=case.get("show_pct", True),
                     ),

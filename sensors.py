@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -22,6 +23,14 @@ class GpuReading:
 
 
 @dataclass(frozen=True)
+class GpuCoreCount:
+    """Static GPU name and core count for the tooltip header."""
+
+    name: str
+    cores: int
+
+
+@dataclass(frozen=True)
 class SensorSnapshot:
     """Point-in-time temperature, utilization, fan, and power readings."""
 
@@ -38,6 +47,14 @@ class SensorSnapshot:
     battery_pct: Optional[float] = None
     error: Optional[str] = None
     gpus: list[GpuReading] = field(default_factory=list)
+    machine_model: Optional[str] = None
+    chip_name: Optional[str] = None
+    cpu_cores: Optional[int] = None
+    gpu_core_counts: list[GpuCoreCount] = field(default_factory=list)
+    disk_name: Optional[str] = None
+    disk_medium: Optional[str] = None
+    disk_used_gb: Optional[float] = None
+    disk_total_gb: Optional[float] = None
 
 
 def format_tray_label(
@@ -52,7 +69,7 @@ def format_tray_label(
             When None, all components are shown.
 
     Returns:
-        str: Text like ``C12%41° G36%40° M12G32% S14W B8W98% F1351+ F1455+``.
+        str: Text like ``C12%41° G36%40° M12G32% D126G7% S14W B8W98% F1351+ F1455+``.
             Dual-GPU machines repeat ``G`` for each GPU.
     """
     enabled = components if components is not None else default_label_components()
@@ -102,6 +119,14 @@ def format_tray_label(
     )
     if memory_part is not None:
         parts.append(memory_part)
+    disk_part = format_disk_tray_part(
+        snapshot.disk_used_gb,
+        snapshot.disk_total_gb,
+        show_gb=is_label_component_enabled(enabled, "disk"),
+        show_pct=is_label_component_enabled(enabled, "disk_pct"),
+    )
+    if disk_part is not None:
+        parts.append(disk_part)
     if is_label_component_enabled(enabled, "system_power"):
         if snapshot.system_power_w is not None:
             parts.append(f"S{snapshot.system_power_w:.0f}W")
@@ -276,30 +301,47 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
         snapshot (SensorSnapshot): Latest sensor readings.
 
     Returns:
-        str: Multi-line tooltip text.
+        str: Multi-line tooltip text, starting with the laptop model when
+            known.
     """
-    lines = ["System monitor"]
-    if snapshot.cpu_celsius is not None:
-        lines.append(f"CPU: {snapshot.cpu_celsius:.1f}°C")
-    if snapshot.cpu_util_pct is not None:
-        lines.append(f"CPU: {snapshot.cpu_util_pct:.0f}%")
-    if len(snapshot.gpus) > 1:
-        for index, gpu in enumerate(snapshot.gpus):
-            label = gpu_tooltip_label(index, gpu.name)
-            if gpu.celsius is not None:
-                lines.append(f"{label}: {gpu.celsius:.1f}°C")
-            lines.append(f"{label}: {coalesce_gpu_util_pct(gpu.util_pct):.0f}%")
-    else:
-        if snapshot.gpu_celsius is not None:
-            lines.append(f"GPU: {snapshot.gpu_celsius:.1f}°C")
-        if snapshot.gpu_util_pct is not None:
-            lines.append(f"GPU: {snapshot.gpu_util_pct:.0f}%")
+    lines = [snapshot.machine_model] if snapshot.machine_model else ["System monitor"]
+    chip_line = format_chip_tooltip(snapshot.chip_name)
+    if chip_line is not None:
+        lines.append(chip_line)
+    disk_name_line = format_disk_name_tooltip(
+        snapshot.disk_medium,
+        snapshot.disk_name,
+    )
+    if disk_name_line is not None:
+        lines.append(disk_name_line)
+    cpu_line = format_util_cores_tooltip(
+        "CPU",
+        snapshot.cpu_util_pct,
+        snapshot.cpu_cores,
+        snapshot.cpu_celsius,
+    )
+    if cpu_line is not None:
+        lines.append(cpu_line)
+    lines.extend(
+        format_gpu_util_cores_tooltips(
+            snapshot.gpus,
+            snapshot.gpu_core_counts,
+            snapshot.gpu_util_pct,
+            snapshot.gpu_celsius,
+        )
+    )
     memory_tooltip = format_memory_tooltip(
         snapshot.memory_used_gb,
         snapshot.memory_total_gb,
     )
     if memory_tooltip is not None:
         lines.append(memory_tooltip)
+    disk_usage_line = format_disk_usage_tooltip(
+        snapshot.disk_used_gb,
+        snapshot.disk_total_gb,
+    )
+    if disk_usage_line is not None:
+        lines.append(disk_usage_line)
     if snapshot.system_power_w is not None:
         lines.append(f"System power: {snapshot.system_power_w:.1f} W")
     battery_part = _format_battery_power_part(snapshot)
@@ -323,6 +365,140 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
     if snapshot.error:
         lines.append(f"Warning: {snapshot.error}")
     return "\n".join(lines)
+
+
+def format_chip_tooltip(chip_name: Optional[str]) -> Optional[str]:
+    """Build a tooltip line for the SoC or CPU name.
+
+    Args:
+        chip_name (str | None): Marketing chip label.
+
+    Returns:
+        str | None: Chip line, or None when the name is missing.
+    """
+    if not chip_name:
+        return None
+    return f"Chip: {chip_name}"
+
+
+def format_disk_name_tooltip(
+    medium: Optional[str],
+    name: Optional[str],
+) -> Optional[str]:
+    """Build a tooltip line for the internal drive model.
+
+    Args:
+        medium (str | None): ``SSD`` or ``HDD``.
+        name (str | None): Drive model name.
+
+    Returns:
+        str | None: Drive identity line, or None when unknown.
+    """
+    if medium and name:
+        return f"{medium}: {name}"
+    if name:
+        return f"Disk: {name}"
+    if medium:
+        return f"Disk: {medium}"
+    return None
+
+
+def format_disk_usage_tooltip(
+    disk_used_gb: Optional[float],
+    disk_total_gb: Optional[float],
+) -> Optional[str]:
+    """Build a tooltip line for used disk space.
+
+    Args:
+        disk_used_gb (float | None): Used disk space in GiB.
+        disk_total_gb (float | None): Total disk space in GiB.
+
+    Returns:
+        str | None: Text like ``Disk: 127.4 / 1858.0 GB (7%)``.
+    """
+    if disk_used_gb is None or disk_total_gb is None or disk_total_gb <= 0:
+        return None
+    disk_used_pct = disk_used_gb / disk_total_gb * 100.0
+    return (
+        f"Disk: {disk_used_gb:.1f} / {disk_total_gb:.1f} GB "
+        f"({disk_used_pct:.0f}%)"
+    )
+
+
+def format_util_cores_tooltip(
+    prefix: str,
+    util_pct: Optional[float],
+    cores: Optional[int],
+    celsius: Optional[float] = None,
+) -> Optional[str]:
+    """Build a tooltip line that merges utilization, temperature, and cores.
+
+    Args:
+        prefix (str): Label prefix such as ``CPU`` or ``GPU``.
+        util_pct (float | None): Utilization percentage.
+        cores (int | None): Core count.
+        celsius (float | None): Temperature in Celsius.
+
+    Returns:
+        str | None: Combined line, or None when all values are missing.
+    """
+    parts: list[str] = []
+    if util_pct is not None:
+        parts.append(f"{util_pct:.0f}%")
+    if celsius is not None:
+        parts.append(f"{celsius:.1f}°C")
+    if cores is not None:
+        parts.append(f"{cores} cores")
+    if not parts:
+        return None
+    return f"{prefix}: {' '.join(parts)}"
+
+
+def format_gpu_util_cores_tooltips(
+    gpus: list[GpuReading],
+    gpu_core_counts: list[GpuCoreCount],
+    gpu_util_pct: Optional[float],
+    gpu_celsius: Optional[float] = None,
+) -> list[str]:
+    """Build tooltip lines that merge GPU utilization, temperature, and cores.
+
+    Args:
+        gpus (list[GpuReading]): Live GPU samples.
+        gpu_core_counts (list[GpuCoreCount]): Static GPU core counts.
+        gpu_util_pct (float | None): Combined GPU utilization for a single GPU.
+        gpu_celsius (float | None): Combined GPU temperature for a single GPU.
+
+    Returns:
+        list[str]: One merged line, or labeled lines on dual-GPU machines.
+    """
+    if len(gpus) > 1 or len(gpu_core_counts) > 1:
+        count = max(len(gpus), len(gpu_core_counts))
+        lines: list[str] = []
+        for index in range(count):
+            gpu = gpus[index] if index < len(gpus) else None
+            cores_info = (
+                gpu_core_counts[index] if index < len(gpu_core_counts) else None
+            )
+            name = None
+            if gpu is not None:
+                name = gpu.name
+            elif cores_info is not None:
+                name = cores_info.name
+            util_pct = coalesce_gpu_util_pct(gpu.util_pct) if gpu is not None else None
+            celsius = gpu.celsius if gpu is not None else None
+            cores = cores_info.cores if cores_info is not None else None
+            line = format_util_cores_tooltip(
+                gpu_tooltip_label(index, name),
+                util_pct,
+                cores,
+                celsius,
+            )
+            if line is not None:
+                lines.append(line)
+        return lines
+    cores = gpu_core_counts[0].cores if gpu_core_counts else None
+    line = format_util_cores_tooltip("GPU", gpu_util_pct, cores, gpu_celsius)
+    return [line] if line is not None else []
 
 
 def gpu_tooltip_label(index: int, name: Optional[str]) -> str:
@@ -358,7 +534,41 @@ def read_sensors() -> SensorSnapshot:
     battery_power_w: Optional[float] = None
     external_connected: Optional[bool] = None
     battery_pct: Optional[float] = None
+    machine_model: Optional[str] = None
+    chip_name: Optional[str] = None
+    cpu_cores: Optional[int] = None
+    gpu_core_counts: list[GpuCoreCount] = []
+    disk_name: Optional[str] = None
+    disk_medium: Optional[str] = None
+    disk_used_gb: Optional[float] = None
+    disk_total_gb: Optional[float] = None
     errors: list[str] = []
+
+    try:
+        from .hardware_darwin import read_hardware_info
+
+        hardware = read_hardware_info()
+        machine_model = hardware.machine_model
+        chip_name = hardware.chip_name
+        cpu_cores = hardware.cpu_cores
+        gpu_core_counts = [
+            GpuCoreCount(name=gpu.name, cores=gpu.core_count)
+            for gpu in hardware.gpus
+        ]
+        if hardware.disk is not None:
+            disk_name = hardware.disk.name
+            disk_medium = hardware.disk.medium
+    except Exception as exc:
+        errors.append(f"hardware: {exc}")
+
+    try:
+        usage = shutil.disk_usage("/")
+        disk_used_gb, disk_total_gb = memory_bytes_to_gb_pair(
+            float(usage.used),
+            float(usage.total),
+        )
+    except OSError as exc:
+        errors.append(f"disk: {exc}")
 
     try:
         system_gpu_stats, system_stats, temperatures = _darwin_perf_readers()
@@ -465,6 +675,14 @@ def read_sensors() -> SensorSnapshot:
         battery_pct=battery_pct,
         error="; ".join(errors) if errors else None,
         gpus=gpus,
+        machine_model=machine_model,
+        chip_name=chip_name,
+        cpu_cores=cpu_cores,
+        gpu_core_counts=gpu_core_counts,
+        disk_name=disk_name,
+        disk_medium=disk_medium,
+        disk_used_gb=disk_used_gb,
+        disk_total_gb=disk_total_gb,
     )
 
 
@@ -615,6 +833,37 @@ def format_memory_tray_part(
         memory_used_pct = memory_used_gb / memory_total_gb * 100.0
         body += f"{memory_used_pct:.0f}%"
     return f"M{body}"
+
+
+def format_disk_tray_part(
+    disk_used_gb: Optional[float],
+    disk_total_gb: Optional[float],
+    *,
+    show_gb: bool = True,
+    show_pct: bool = True,
+) -> Optional[str]:
+    """Build the used-disk segment for the tray label.
+
+    Args:
+        disk_used_gb (float | None): Used disk space in GiB.
+        disk_total_gb (float | None): Total disk space in GiB.
+        show_gb (bool): Whether used GiB is enabled.
+        show_pct (bool): Whether used percent is enabled.
+
+    Returns:
+        str | None: Text like ``D126G7%``, or None when nothing is shown.
+    """
+    if not show_gb and not show_pct:
+        return None
+    if disk_used_gb is None or disk_total_gb is None or disk_total_gb <= 0:
+        return None
+    body = ""
+    if show_gb:
+        body += f"{disk_used_gb:.0f}G"
+    if show_pct:
+        disk_used_pct = disk_used_gb / disk_total_gb * 100.0
+        body += f"{disk_used_pct:.0f}%"
+    return f"D{body}"
 
 
 def format_memory_tooltip(

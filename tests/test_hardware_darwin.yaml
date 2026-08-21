@@ -1,0 +1,378 @@
+optional_stripped_text:
+  - name: string
+    value: " MacBook Pro "
+    expected: MacBook Pro
+  - name: empty
+    value: "   "
+    expected: null
+  - name: missing
+    value: null
+    expected: null
+  - name: non_string
+    value: 12
+    expected: null
+
+optional_positive_int:
+  - name: int
+    value: 32
+    expected: 32
+  - name: string
+    value: "32"
+    expected: 32
+  - name: zero
+    value: 0
+    expected: null
+  - name: bool
+    value: true
+    expected: null
+  - name: missing
+    value: null
+    expected: null
+
+machine_model_from_overview:
+  - name: name_and_identifier
+    overview:
+      machine_name: MacBook Pro
+      machine_model: Mac17,6
+    expected: MacBook Pro (Mac17,6)
+  - name: name_only
+    overview:
+      machine_name: MacBook Pro
+      machine_model: ""
+    expected: MacBook Pro
+  - name: identifier_only
+    overview:
+      machine_model: MacBookPro16,1
+    expected: MacBookPro16,1
+  - name: empty
+    overview: {}
+    expected: null
+
+chip_name_from_overview:
+  - name: apple_silicon
+    overview:
+      chip_type: Apple M5 Max
+    expected: Apple M5 Max
+  - name: intel_cpu_type
+    overview:
+      cpu_type: Intel Core i9
+    expected: Intel Core i9
+  - name: chip_type_wins
+    overview:
+      chip_type: Apple M5 Max
+      cpu_type: Intel Core i9
+    expected: Apple M5 Max
+  - name: empty
+    overview: {}
+    expected: null
+
+cpu_cores_from_number_processors:
+  - name: apple_silicon
+    value: "proc 18:6:0:12"
+    expected: 18
+  - name: intel_cores_threads
+    value: "proc 8:16"
+    expected: 8
+  - name: integer
+    value: 10
+    expected: 10
+  - name: missing
+    value: null
+    expected: null
+
+gpu_hardware_from_displays:
+  - name: apple_gpu
+    entries:
+      - _name: Apple M5 Max
+        sppci_model: Apple M5 Max
+        sppci_cores: "32"
+    expected:
+      - name: Apple M5 Max
+        core_count: 32
+  - name: skip_without_cores
+    entries:
+      - _name: Intel UHD Graphics 630
+        sppci_model: Intel UHD Graphics 630
+    expected: []
+  - name: dual_gpus
+    entries:
+      - sppci_model: Intel UHD Graphics 630
+        sppci_cores: "24"
+      - sppci_model: AMD Radeon Pro 5500M
+        sppci_cores: "40"
+    expected:
+      - name: Intel UHD Graphics 630
+        core_count: 24
+      - name: AMD Radeon Pro 5500M
+        core_count: 40
+  - name: not_a_list
+    entries: {}
+    expected: []
+
+hardware_overview_from_payload:
+  - name: present
+    payload:
+      SPHardwareDataType:
+        - machine_name: MacBook Pro
+    expected:
+      machine_name: MacBook Pro
+  - name: empty_list
+    payload:
+      SPHardwareDataType: []
+    expected: null
+  - name: not_a_dict
+    payload: []
+    expected: null
+
+hardware_info_from_profiler_payload:
+  - name: apple_silicon
+    payload:
+      SPHardwareDataType:
+        - machine_name: MacBook Pro
+          machine_model: Mac17,6
+          chip_type: Apple M5 Max
+          number_processors: "proc 18:6:0:12"
+      SPDisplaysDataType:
+        - sppci_model: Apple M5 Max
+          sppci_cores: "32"
+      SPNVMeDataType:
+        - _name: Apple SSD Controller
+          _items:
+            - _name: APPLE SSD AP2048Z
+              device_model: APPLE SSD AP2048Z
+              detachable_drive: "no"
+              size_in_bytes: 2001111162880
+      SPStorageDataType:
+        - _name: Macintosh HD
+          mount_point: /
+          size_in_bytes: 1995165736960
+          physical_drive:
+            device_name: APPLE SSD AP2048Z
+            is_internal_disk: "yes"
+            medium_type: ssd
+    expected:
+      machine_model: MacBook Pro (Mac17,6)
+      chip_name: Apple M5 Max
+      cpu_cores: 18
+      gpus:
+        - name: Apple M5 Max
+          core_count: 32
+      disk:
+        name: APPLE SSD AP2048Z
+        medium: SSD
+        size_bytes: 2001111162880
+  - name: empty
+    payload: {}
+    expected:
+      machine_model: null
+      chip_name: null
+      cpu_cores: null
+      gpus: []
+      disk: null
+
+read_hardware_info:
+  - name: profiler_json
+    stdout_json:
+      SPHardwareDataType:
+        - machine_name: MacBook Pro
+          machine_model: Mac17,6
+          chip_type: Apple M5 Max
+          number_processors: "proc 18:6:0:12"
+      SPDisplaysDataType:
+        - sppci_model: Apple M5 Max
+          sppci_cores: "32"
+      SPNVMeDataType:
+        - _name: Apple SSD Controller
+          _items:
+            - _name: APPLE SSD AP2048Z
+              device_model: APPLE SSD AP2048Z
+              detachable_drive: "no"
+              size_in_bytes: 2001111162880
+      SPStorageDataType:
+        - _name: Macintosh HD
+          mount_point: /
+          size_in_bytes: 1995165736960
+          physical_drive:
+            device_name: APPLE SSD AP2048Z
+            is_internal_disk: "yes"
+            medium_type: ssd
+    expected:
+      machine_model: MacBook Pro (Mac17,6)
+      chip_name: Apple M5 Max
+      cpu_cores: 18
+      gpus:
+        - name: Apple M5 Max
+          core_count: 32
+      disk:
+        name: APPLE SSD AP2048Z
+        medium: SSD
+        size_bytes: 2001111162880
+  - name: invalid_json
+    stdout: "{"
+    expected:
+      machine_model: null
+      chip_name: null
+      cpu_cores: null
+      gpus: []
+      disk: null
+
+is_profiler_yes:
+  - name: yes
+    value: "Yes"
+    expected: true
+  - name: no
+    value: "no"
+    expected: false
+
+is_profiler_no:
+  - name: no
+    value: "no"
+    expected: true
+  - name: yes
+    value: "yes"
+    expected: false
+
+flatten_profiler_items:
+  - name: nested_nvme
+    entries:
+      - _name: Apple SSD Controller
+        _items:
+          - _name: APPLE SSD AP2048Z
+            size_in_bytes: 2001111162880
+    expected:
+      - _name: APPLE SSD AP2048Z
+        size_in_bytes: 2001111162880
+  - name: not_a_list
+    entries: {}
+    expected: []
+
+disk_medium_label:
+  - name: ssd
+    medium_type: ssd
+    expected: SSD
+  - name: hdd
+    medium_type: rotational
+    expected: HDD
+  - name: missing
+    medium_type: null
+    expected: null
+
+disk_from_controller_entry:
+  - name: nvme
+    entry:
+      _name: APPLE SSD AP2048Z
+      device_model: APPLE SSD AP2048Z
+      detachable_drive: "no"
+      size_in_bytes: 2001111162880
+    expected:
+      name: APPLE SSD AP2048Z
+      medium: null
+      size_bytes: 2001111162880
+  - name: detachable
+    entry:
+      _name: USB Disk
+      detachable_drive: "yes"
+      size_in_bytes: 1000
+    expected: null
+
+disk_from_storage_entry:
+  - name: internal_root
+    entry:
+      mount_point: /
+      size_in_bytes: 1995165736960
+      physical_drive:
+        device_name: APPLE SSD AP2048Z
+        is_internal_disk: "yes"
+        medium_type: ssd
+    expected:
+      name: APPLE SSD AP2048Z
+      medium: SSD
+      size_bytes: 1995165736960
+  - name: external
+    entry:
+      mount_point: /Volumes/Backup
+      physical_drive:
+        device_name: External
+        is_internal_disk: "no"
+        medium_type: hdd
+    expected: null
+
+merge_disk_hardware:
+  - name: fill_medium
+    left:
+      name: APPLE SSD AP2048Z
+      medium: null
+      size_bytes: 2001111162880
+    right:
+      name: APPLE SSD AP2048Z
+      medium: SSD
+      size_bytes: 1995165736960
+    expected:
+      name: APPLE SSD AP2048Z
+      medium: SSD
+      size_bytes: 2001111162880
+  - name: both_missing
+    left: null
+    right: null
+    expected: null
+
+disk_hardware_from_controllers:
+  - name: nvme
+    entries:
+      - _name: Apple SSD Controller
+        _items:
+          - device_model: APPLE SSD AP2048Z
+            detachable_drive: "no"
+            size_in_bytes: 2001111162880
+    expected:
+      name: APPLE SSD AP2048Z
+      medium: null
+      size_bytes: 2001111162880
+  - name: empty
+    entries: []
+    expected: null
+
+disk_hardware_from_storage:
+  - name: prefers_root
+    entries:
+      - _name: Data
+        mount_point: /System/Volumes/Data
+        physical_drive:
+          device_name: APPLE SSD AP2048Z
+          is_internal_disk: "yes"
+          medium_type: ssd
+        size_in_bytes: 1
+      - _name: Macintosh HD
+        mount_point: /
+        physical_drive:
+          device_name: APPLE SSD AP2048Z
+          is_internal_disk: "yes"
+          medium_type: ssd
+        size_in_bytes: 1995165736960
+    expected:
+      name: APPLE SSD AP2048Z
+      medium: SSD
+      size_bytes: 1995165736960
+
+disk_hardware_from_profiler_payload:
+  - name: nvme_and_storage
+    payload:
+      SPNVMeDataType:
+        - _items:
+            - device_model: APPLE SSD AP2048Z
+              detachable_drive: "no"
+              size_in_bytes: 2001111162880
+      SPStorageDataType:
+        - mount_point: /
+          physical_drive:
+            device_name: APPLE SSD AP2048Z
+            is_internal_disk: "yes"
+            medium_type: ssd
+    expected:
+      name: APPLE SSD AP2048Z
+      medium: SSD
+      size_bytes: 2001111162880
+  - name: empty
+    payload: {}
+    expected: null
+

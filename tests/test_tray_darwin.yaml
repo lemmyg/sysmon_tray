@@ -110,6 +110,8 @@ label_components_for_gpu_count:
       - gpu_temp
       - memory
       - memory_pct
+      - disk
+      - disk_pct
       - system_power
       - battery_power
       - battery_pct
@@ -121,6 +123,8 @@ label_components_for_gpu_count:
       - "GPU °C"
       - "Memory GB"
       - "Memory %"
+      - "Disk GB"
+      - "Disk %"
       - "System power W"
       - "Battery power W"
       - "Battery charge %"
@@ -136,6 +140,8 @@ label_components_for_gpu_count:
       - gpu1_temp
       - memory
       - memory_pct
+      - disk
+      - disk_pct
       - system_power
       - battery_power
       - battery_pct
@@ -149,6 +155,8 @@ label_components_for_gpu_count:
       - "GPU1 °C"
       - "Memory GB"
       - "Memory %"
+      - "Disk GB"
+      - "Disk %"
       - "System power W"
       - "Battery power W"
       - "Battery charge %"
@@ -224,6 +232,8 @@ persistable_component_keys:
       - gpu_temp
       - memory
       - memory_pct
+      - disk
+      - disk_pct
       - system_power
       - battery_power
       - battery_pct
@@ -236,7 +246,7 @@ label_component_key_for_tag:
     tag: 0
     expected: cpu_util
   - name: fans
-    tag: 9
+    tag: 11
     expected: fans
   - name: memory
     tag: 4
@@ -244,17 +254,29 @@ label_component_key_for_tag:
   - name: memory_pct
     tag: 5
     expected: memory_pct
+  - name: disk_pct
+    tag: 7
+    expected: disk_pct
+  - name: disk
+    tag: 6
+    expected: disk
 
 status_item_delegate_toggle_component:
   - name: cpu_temp
     tag: 1
     expected_key: cpu_temp
   - name: battery_pct
-    tag: 8
+    tag: 10
     expected_key: battery_pct
   - name: memory_pct
     tag: 5
     expected_key: memory_pct
+  - name: disk_pct
+    tag: 7
+    expected_key: disk_pct
+  - name: disk
+    tag: 6
+    expected_key: disk
 
 status_item_click_action:
   - name: single_click

@@ -63,13 +63,15 @@ format_tray_label:
       gpu_util_pct: 1.0
       memory_used_gb: 20.0
       memory_total_gb: 50.0
+      disk_used_gb: 127.4
+      disk_total_gb: 1858.0
       fan_rpms: [1000, 1000]
       system_power_w: 9.0
       battery_power_w: 0.0
       external_connected: true
       battery_pct: 80.0
       error: null
-    expected: "C5%37° G1%37° M20G40% S9W B0W80% F1000+ F1000+"
+    expected: "C5%37° G1%37° M20G40% D127G7% S9W B0W80% F1000+ F1000+"
   - name: fanless
     snapshot:
       cpu_celsius: 35.0
@@ -90,6 +92,17 @@ format_tray_label:
       fan_rpms: []
       error: null
     expected: "C12%41° G36%40° M12G32%"
+  - name: with_disk
+    snapshot:
+      cpu_celsius: 41.2
+      gpu_celsius: 39.8
+      cpu_util_pct: 12.4
+      gpu_util_pct: 36.2
+      disk_used_gb: 127.4
+      disk_total_gb: 1858.0
+      fan_rpms: []
+      error: null
+    expected: "C12%41° G36%40° D127G7%"
   - name: only_temps_enabled
     snapshot:
       cpu_celsius: 41.2
@@ -109,6 +122,8 @@ format_tray_label:
       gpu_temp: true
       memory: false
       memory_pct: false
+      disk: false
+      disk_pct: false
       system_power: false
       battery_power: false
       battery_pct: false
@@ -129,6 +144,8 @@ format_tray_label:
       gpu_temp: false
       memory: false
       memory_pct: false
+      disk: false
+      disk_pct: false
       system_power: false
       battery_power: false
       battery_pct: false
@@ -172,6 +189,8 @@ format_tray_label:
       gpu_temp: true
       memory: false
       memory_pct: false
+      disk: false
+      disk_pct: false
       system_power: false
       battery_power: false
       battery_pct: false
@@ -296,6 +315,16 @@ format_battery_tray_part:
 format_tooltip:
   - name: full_snapshot
     snapshot:
+      machine_model: MacBook Pro (Mac17,6)
+      chip_name: Apple M5 Max
+      cpu_cores: 18
+      gpu_core_counts:
+        - name: Apple M5 Max
+          cores: 32
+      disk_name: APPLE SSD AP2048Z
+      disk_medium: SSD
+      disk_used_gb: 127.4
+      disk_total_gb: 1858.0
       cpu_celsius: 42.5
       gpu_celsius: 39.0
       cpu_util_pct: 8.0
@@ -309,16 +338,19 @@ format_tooltip:
       battery_pct: 98.0
       error: null
     expected_contains:
-      - "CPU: 42.5°C"
-      - "CPU: 8%"
-      - "GPU: 39.0°C"
-      - "GPU: 22%"
+      - "MacBook Pro (Mac17,6)"
+      - "Chip: Apple M5 Max"
+      - "SSD: APPLE SSD AP2048Z"
+      - "CPU: 8% 42.5°C 18 cores"
+      - "GPU: 22% 39.0°C 32 cores"
       - "Memory: 11.5 / 36.0 GB (32%)"
+      - "Disk: 127.4 / 1858.0 GB (7%)"
       - "System power: 13.9 W"
       - "Battery power: 8.4 W"
       - "Battery charge: 98%"
       - "Fan 1: 1346 RPM"
       - "Fan 2: 1456 RPM"
+    expected_first_line: MacBook Pro (Mac17,6)
   - name: fanless
     snapshot:
       cpu_celsius: 35.0
@@ -330,6 +362,7 @@ format_tooltip:
     expected_contains:
       - "CPU: 35.0°C"
       - "Fans: none / fanless"
+    expected_first_line: System monitor
   - name: dual_gpus
     snapshot:
       cpu_celsius: 41.2
@@ -346,10 +379,102 @@ format_tooltip:
           util_pct: null
           celsius: 38.8
     expected_contains:
-      - "GPU0 Intel UHD Graphics 630: 40.1°C"
-      - "GPU0 Intel UHD Graphics 630: 6%"
-      - "GPU1 AMD Radeon Pro 5500M: 38.8°C"
-      - "GPU1 AMD Radeon Pro 5500M: 0%"
+      - "GPU0 Intel UHD Graphics 630: 6% 40.1°C"
+      - "GPU1 AMD Radeon Pro 5500M: 0% 38.8°C"
+
+format_chip_tooltip:
+  - name: present
+    chip_name: Apple M5 Max
+    expected: "Chip: Apple M5 Max"
+  - name: missing
+    chip_name: null
+    expected: null
+
+format_disk_name_tooltip:
+  - name: ssd_and_name
+    medium: SSD
+    name: APPLE SSD AP2048Z
+    expected: "SSD: APPLE SSD AP2048Z"
+  - name: name_only
+    medium: null
+    name: APPLE SSD AP2048Z
+    expected: "Disk: APPLE SSD AP2048Z"
+  - name: missing
+    medium: null
+    name: null
+    expected: null
+
+format_disk_usage_tooltip:
+  - name: used_and_total
+    disk_used_gb: 127.4
+    disk_total_gb: 1858.0
+    expected: "Disk: 127.4 / 1858.0 GB (7%)"
+  - name: missing_total
+    disk_used_gb: 127.4
+    disk_total_gb: null
+    expected: null
+
+format_util_cores_tooltip:
+  - name: all
+    prefix: CPU
+    util_pct: 8.0
+    celsius: 42.5
+    cores: 18
+    expected: "CPU: 8% 42.5°C 18 cores"
+  - name: cores_only
+    prefix: CPU
+    util_pct: null
+    cores: 18
+    expected: "CPU: 18 cores"
+  - name: util_only
+    prefix: GPU
+    util_pct: 22.0
+    cores: null
+    expected: "GPU: 22%"
+  - name: temp_only
+    prefix: CPU
+    util_pct: null
+    cores: null
+    celsius: 35.0
+    expected: "CPU: 35.0°C"
+  - name: missing
+    prefix: CPU
+    util_pct: null
+    cores: null
+    expected: null
+
+format_gpu_util_cores_tooltips:
+  - name: single
+    gpus: []
+    gpu_util_pct: 22.0
+    gpu_celsius: 39.0
+    gpu_core_counts:
+      - name: Apple M5 Max
+        cores: 32
+    expected:
+      - "GPU: 22% 39.0°C 32 cores"
+  - name: dual
+    gpu_util_pct: null
+    gpus:
+      - name: Intel UHD Graphics 630
+        util_pct: 6.0
+        celsius: 40.1
+      - name: AMD Radeon Pro 5500M
+        util_pct: null
+        celsius: 38.8
+    gpu_core_counts:
+      - name: Intel UHD Graphics 630
+        cores: 24
+      - name: AMD Radeon Pro 5500M
+        cores: 40
+    expected:
+      - "GPU0 Intel UHD Graphics 630: 6% 40.1°C 24 cores"
+      - "GPU1 AMD Radeon Pro 5500M: 0% 38.8°C 40 cores"
+  - name: empty
+    gpus: []
+    gpu_util_pct: null
+    gpu_core_counts: []
+    expected: []
 
 coalesce_gpu_util_pct:
   - name: missing_is_zero
@@ -499,6 +624,28 @@ format_memory_tray_part:
   - name: missing_used
     memory_used_gb: null
     memory_total_gb: 36.0
+    expected: null
+
+format_disk_tray_part:
+  - name: gigabytes_with_pct
+    disk_used_gb: 126.4
+    disk_total_gb: 1858.0
+    expected: "D126G7%"
+  - name: gb_only
+    disk_used_gb: 126.4
+    disk_total_gb: 1858.0
+    show_gb: true
+    show_pct: false
+    expected: "D126G"
+  - name: pct_only
+    disk_used_gb: 126.4
+    disk_total_gb: 1858.0
+    show_gb: false
+    show_pct: true
+    expected: "D7%"
+  - name: missing_total
+    disk_used_gb: 126.4
+    disk_total_gb: null
     expected: null
 
 format_memory_tooltip:
