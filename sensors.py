@@ -263,16 +263,14 @@ def format_battery_tray_part(
     if not show_power and not show_pct:
         return None
     body = ""
-    if show_power:
-        power_part = _format_battery_power_part(snapshot)
-        if power_part is not None:
-            body += power_part
     if show_pct:
         pct_part = _format_battery_pct_part(snapshot)
         if pct_part is not None:
             body += pct_part
-    if not body:
-        return None
+    if show_power:
+        power_part = _format_battery_power_part(snapshot)
+        if power_part is not None:
+            body += power_part
     return f"B{body}"
 
 
@@ -827,11 +825,11 @@ def format_memory_tray_part(
     if memory_used_gb is None or memory_total_gb is None or memory_total_gb <= 0:
         return None
     body = ""
-    if show_gb:
-        body += f"{memory_used_gb:.0f}G"
     if show_pct:
         memory_used_pct = memory_used_gb / memory_total_gb * 100.0
         body += f"{memory_used_pct:.0f}%"
+    if show_gb:
+        body += f"{memory_used_gb:.0f}G"
     return f"M{body}"
 
 
@@ -858,11 +856,11 @@ def format_disk_tray_part(
     if disk_used_gb is None or disk_total_gb is None or disk_total_gb <= 0:
         return None
     body = ""
-    if show_gb:
-        body += f"{disk_used_gb:.0f}G"
     if show_pct:
         disk_used_pct = disk_used_gb / disk_total_gb * 100.0
         body += f"{disk_used_pct:.0f}%"
+    if show_gb:
+        body += f"{disk_used_gb:.0f}G"
     return f"D{body}"
 
 
