@@ -7,7 +7,7 @@ format_tray_label:
       gpu_util_pct: 36.2
       fan_rpms: [1351, 1455]
       error: null
-    expected: "C12%41° G36%40° F1351+ F1455+"
+    expected: "C12%41° G36%40° B F1351+ F1455+"
   - name: with_fans_and_power
     snapshot:
       cpu_celsius: 41.2
@@ -54,7 +54,7 @@ format_tray_label:
       external_connected: false
       battery_pct: 98.0
       error: null
-    expected: "C12%41° G36%40° S14W B8W98% F1351+ F1455+"
+    expected: "C12%41° G36%40° S14W B98%8W F1351+ F1455+"
   - name: example_format
     snapshot:
       cpu_celsius: 37.0
@@ -71,7 +71,7 @@ format_tray_label:
       external_connected: true
       battery_pct: 80.0
       error: null
-    expected: "C5%37° G1%37° M20G40% D127G7% S9W B0W80% F1000+ F1000+"
+    expected: "C5%37° G1%37° M40%20G D7%127G S9W B80%0W F1000+ F1000+"
   - name: fanless
     snapshot:
       cpu_celsius: 35.0
@@ -80,7 +80,7 @@ format_tray_label:
       gpu_util_pct: null
       fan_rpms: []
       error: null
-    expected: "C--35° G----"
+    expected: "C--35° G---- B"
   - name: with_memory
     snapshot:
       cpu_celsius: 41.2
@@ -91,7 +91,7 @@ format_tray_label:
       memory_total_gb: 36.0
       fan_rpms: []
       error: null
-    expected: "C12%41° G36%40° M12G32%"
+    expected: "C12%41° G36%40° M32%12G B"
   - name: with_disk
     snapshot:
       cpu_celsius: 41.2
@@ -102,7 +102,7 @@ format_tray_label:
       disk_total_gb: 1858.0
       fan_rpms: []
       error: null
-    expected: "C12%41° G36%40° D127G7%"
+    expected: "C12%41° G36%40° D7%127G B"
   - name: only_temps_enabled
     snapshot:
       cpu_celsius: 41.2
@@ -166,7 +166,7 @@ format_tray_label:
         - name: AMD Radeon Pro 5500M
           util_pct: null
           celsius: 38.8
-    expected: "C12%41° G6%40° G0%39°"
+    expected: "C12%41° G6%40° G0%39° B"
   - name: dual_gpus_temp_only
     snapshot:
       cpu_celsius: 41.2
@@ -216,7 +216,7 @@ format_tray_label:
       gpu0_temp: true
       gpu1_util: false
       gpu1_temp: false
-    expected: "C12%41° G6%40°"
+    expected: "C12%41° G6%40° B"
 
 format_metric_pair_tray_part:
   - name: both_values
@@ -271,7 +271,7 @@ format_battery_tray_part:
       error: null
     show_power: true
     show_pct: true
-    expected: "B0W80%"
+    expected: "B80%0W"
   - name: power_only
     snapshot:
       cpu_celsius: null
@@ -604,11 +604,11 @@ format_memory_tray_part:
   - name: integer_gigabytes_with_pct
     memory_used_gb: 11.48
     memory_total_gb: 36.0
-    expected: "M11G32%"
+    expected: "M32%11G"
   - name: example_format
     memory_used_gb: 20.0
     memory_total_gb: 50.0
-    expected: "M20G40%"
+    expected: "M40%20G"
   - name: gb_only
     memory_used_gb: 20.0
     memory_total_gb: 50.0
@@ -630,7 +630,7 @@ format_disk_tray_part:
   - name: gigabytes_with_pct
     disk_used_gb: 126.4
     disk_total_gb: 1858.0
-    expected: "D126G7%"
+    expected: "D7%126G"
   - name: gb_only
     disk_used_gb: 126.4
     disk_total_gb: 1858.0
