@@ -6,7 +6,7 @@
 
 Live CPU/GPU temperature and fan-speed monitor for the macOS menu bar.
 
-The label shows compact readings like `C6%36° G0%36° M19G52% S8W B0W80% F0+ F0+` (CPU %, CPU °C, GPU %, GPU °C, memory, system power W, battery power W / charge %, fan RPMs). Dual-GPU Intel Macs repeat `G` for each GPU. Hover for details; right-click for Refresh interval, Components, and Quit.
+The label shows compact readings like `C6%36° G0%36° M52%19G S8W B80%0W F0+ F0+` (CPU %, CPU °C, GPU %, GPU °C, memory % then GB, system power W, battery % then W, fan RPMs). Dual-GPU Intel Macs repeat `G` for each GPU. Hover for details; right-click for Refresh interval, Components, and Quit.
 
 ## Requirements
 
