@@ -206,7 +206,7 @@ class DarwinMenuBarLabel:
         if cell is not None:
             cell.setWraps_(False)
             cell.setLineBreakMode_(NSLineBreakByTruncatingTail)
-        button.setTitle_("C--%--° G--%--° M--G--% S--W B--W--% F--+ F--+")
+        button.setTitle_("C--%--° G--%--° M--G--% B--%--W S--W F--+ F--+")
         self._sync_status_item_length()
 
         self._refresh_items: dict[float, NSMenuItem] = {}

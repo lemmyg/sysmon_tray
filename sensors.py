@@ -69,7 +69,7 @@ def format_tray_label(
             When None, all components are shown.
 
     Returns:
-        str: Text like ``C12%41° G36%40° M12G32% D126G7% S14W B8W98% F1351+ F1455+``.
+        str: Text like ``C12%41° G36%40° M12G32% D126G7% B8W98% S14W F1351+ F1455+``.
             Dual-GPU machines repeat ``G`` for each GPU.
     """
     enabled = components if components is not None else default_label_components()
@@ -127,9 +127,6 @@ def format_tray_label(
     )
     if disk_part is not None:
         parts.append(disk_part)
-    if is_label_component_enabled(enabled, "system_power"):
-        if snapshot.system_power_w is not None:
-            parts.append(f"S{snapshot.system_power_w:.0f}W")
     battery_part = format_battery_tray_part(
         snapshot,
         show_power=is_label_component_enabled(enabled, "battery_power"),
@@ -137,6 +134,9 @@ def format_tray_label(
     )
     if battery_part is not None:
         parts.append(battery_part)
+    if is_label_component_enabled(enabled, "system_power"):
+        if snapshot.system_power_w is not None:
+            parts.append(f"S{snapshot.system_power_w:.0f}W")
     if is_label_component_enabled(enabled, "fans") and snapshot.fan_rpms:
         parts.extend(f"F{rpm}+" for rpm in snapshot.fan_rpms)
     if not parts:
@@ -340,8 +340,8 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
     )
     if disk_usage_line is not None:
         lines.append(disk_usage_line)
-    if snapshot.system_power_w is not None:
-        lines.append(f"System power: {snapshot.system_power_w:.1f} W")
+    if snapshot.battery_pct is not None:
+        lines.append(f"Battery charge: {snapshot.battery_pct:.0f}%")
     battery_part = _format_battery_power_part(snapshot)
     if battery_part is not None:
         from .power_darwin import battery_discharge_w
@@ -353,8 +353,8 @@ def format_tooltip(snapshot: SensorSnapshot) -> str:
         )
         if discharge_w is not None:
             lines.append(f"Battery power: {discharge_w:.1f} W")
-    if snapshot.battery_pct is not None:
-        lines.append(f"Battery charge: {snapshot.battery_pct:.0f}%")
+    if snapshot.system_power_w is not None:
+        lines.append(f"System power: {snapshot.system_power_w:.1f} W")
     if snapshot.fan_rpms:
         fan_text = ", ".join(f"Fan {index + 1}: {rpm} RPM" for index, rpm in enumerate(snapshot.fan_rpms))
         lines.append(fan_text)

@@ -17,13 +17,13 @@ LABEL_COMPONENTS: tuple[tuple[str, str], ...] = (
     ("cpu_temp", "CPU °C"),
     ("gpu_util", "GPU %"),
     ("gpu_temp", "GPU °C"),
-    ("memory", "Memory GB"),
     ("memory_pct", "Memory %"),
-    ("disk", "Disk GB"),
+    ("memory", "Memory GB"),
     ("disk_pct", "Disk %"),
-    ("system_power", "System power W"),
-    ("battery_power", "Battery power W"),
+    ("disk", "Disk GB"),
     ("battery_pct", "Battery charge %"),
+    ("battery_power", "Battery power W"),
+    ("system_power", "System power W"),
     ("fans", "Fans"),
 )
 

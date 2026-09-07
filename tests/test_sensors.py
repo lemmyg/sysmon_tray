@@ -104,8 +104,12 @@ class TestSensors(unittest.TestCase):
             with self.subTest(name=case["name"]):
                 snapshot = _snapshot_from_case(case["snapshot"])
                 tooltip = format_tooltip(snapshot)
+                last_index = -1
                 for expected in case["expected_contains"]:
-                    self.assertIn(expected, tooltip)
+                    index = tooltip.find(expected)
+                    self.assertNotEqual(-1, index)
+                    self.assertGreater(index, last_index)
+                    last_index = index
                 first_line = case.get("expected_first_line")
                 if first_line is not None:
                     self.assertEqual(first_line, tooltip.split("\n", 1)[0])

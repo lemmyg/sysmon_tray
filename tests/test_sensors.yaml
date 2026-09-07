@@ -18,7 +18,7 @@ format_tray_label:
       system_power_w: 13.9
       external_connected: true
       error: null
-    expected: "C12%41° G36%40° S14W B0W F1351+ F1455+"
+    expected: "C12%41° G36%40° B0W S14W F1351+ F1455+"
   - name: with_system_power
     snapshot:
       cpu_celsius: 41.2
@@ -29,7 +29,7 @@ format_tray_label:
       system_power_w: 13.9
       external_connected: true
       error: null
-    expected: "C12%41° G36%40° S14W B0W"
+    expected: "C12%41° G36%40° B0W S14W"
   - name: with_battery_power
     snapshot:
       cpu_celsius: 41.2
@@ -41,7 +41,7 @@ format_tray_label:
       battery_power_w: 8.4
       external_connected: false
       error: null
-    expected: "C12%41° G36%40° S14W B8W"
+    expected: "C12%41° G36%40° B8W S14W"
   - name: with_battery_pct
     snapshot:
       cpu_celsius: 41.2
@@ -54,7 +54,7 @@ format_tray_label:
       external_connected: false
       battery_pct: 98.0
       error: null
-    expected: "C12%41° G36%40° S14W B98%8W F1351+ F1455+"
+    expected: "C12%41° G36%40° B98%8W S14W F1351+ F1455+"
   - name: example_format
     snapshot:
       cpu_celsius: 37.0
@@ -71,7 +71,7 @@ format_tray_label:
       external_connected: true
       battery_pct: 80.0
       error: null
-    expected: "C5%37° G1%37° M40%20G D7%127G S9W B80%0W F1000+ F1000+"
+    expected: "C5%37° G1%37° M40%20G D7%127G B80%0W S9W F1000+ F1000+"
   - name: fanless
     snapshot:
       cpu_celsius: 35.0
@@ -345,9 +345,9 @@ format_tooltip:
       - "GPU: 22% 39.0°C 32 cores"
       - "Memory: 11.5 / 36.0 GB (32%)"
       - "Disk: 127.4 / 1858.0 GB (7%)"
-      - "System power: 13.9 W"
-      - "Battery power: 8.4 W"
       - "Battery charge: 98%"
+      - "Battery power: 8.4 W"
+      - "System power: 13.9 W"
       - "Fan 1: 1346 RPM"
       - "Fan 2: 1456 RPM"
     expected_first_line: MacBook Pro (Mac17,6)

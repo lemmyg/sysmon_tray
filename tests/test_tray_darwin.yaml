@@ -108,26 +108,26 @@ label_components_for_gpu_count:
       - cpu_temp
       - gpu_util
       - gpu_temp
-      - memory
       - memory_pct
-      - disk
+      - memory
       - disk_pct
-      - system_power
-      - battery_power
+      - disk
       - battery_pct
+      - battery_power
+      - system_power
       - fans
     expected_titles:
       - "CPU %"
       - "CPU °C"
       - "GPU %"
       - "GPU °C"
-      - "Memory GB"
       - "Memory %"
-      - "Disk GB"
+      - "Memory GB"
       - "Disk %"
-      - "System power W"
-      - "Battery power W"
+      - "Disk GB"
       - "Battery charge %"
+      - "Battery power W"
+      - "System power W"
       - "Fans"
   - name: dual_expands_gpu0_gpu1
     gpu_count: 2
@@ -138,13 +138,13 @@ label_components_for_gpu_count:
       - gpu0_temp
       - gpu1_util
       - gpu1_temp
-      - memory
       - memory_pct
-      - disk
+      - memory
       - disk_pct
-      - system_power
-      - battery_power
+      - disk
       - battery_pct
+      - battery_power
+      - system_power
       - fans
     expected_titles:
       - "CPU %"
@@ -153,13 +153,13 @@ label_components_for_gpu_count:
       - "GPU0 °C"
       - "GPU1 %"
       - "GPU1 °C"
-      - "Memory GB"
       - "Memory %"
-      - "Disk GB"
+      - "Memory GB"
       - "Disk %"
-      - "System power W"
-      - "Battery power W"
+      - "Disk GB"
       - "Battery charge %"
+      - "Battery power W"
+      - "System power W"
       - "Fans"
 
 ensure_gpu_component_defaults:
@@ -230,13 +230,13 @@ persistable_component_keys:
       - cpu_temp
       - gpu_util
       - gpu_temp
-      - memory
       - memory_pct
-      - disk
+      - memory
       - disk_pct
-      - system_power
-      - battery_power
+      - disk
       - battery_pct
+      - battery_power
+      - system_power
       - fans
       - gpu0_util
       - gpu1_temp
@@ -249,16 +249,16 @@ label_component_key_for_tag:
     tag: 11
     expected: fans
   - name: memory
-    tag: 4
+    tag: 5
     expected: memory
   - name: memory_pct
-    tag: 5
+    tag: 4
     expected: memory_pct
   - name: disk_pct
-    tag: 7
+    tag: 6
     expected: disk_pct
   - name: disk
-    tag: 6
+    tag: 7
     expected: disk
 
 status_item_delegate_toggle_component:
@@ -266,16 +266,16 @@ status_item_delegate_toggle_component:
     tag: 1
     expected_key: cpu_temp
   - name: battery_pct
-    tag: 10
+    tag: 8
     expected_key: battery_pct
   - name: memory_pct
-    tag: 5
+    tag: 4
     expected_key: memory_pct
   - name: disk_pct
-    tag: 7
+    tag: 6
     expected_key: disk_pct
   - name: disk
-    tag: 6
+    tag: 7
     expected_key: disk
 
 status_item_click_action:
