@@ -11,6 +11,8 @@ from ..sensors import (
     GpuCoreCount,
     GpuReading,
     SensorSnapshot,
+    cpu_util_pct_from_system_stats,
+    cpu_util_pct_from_ticks,
     format_battery_tray_part,
     format_chip_tooltip,
     format_disk_name_tooltip,
@@ -31,6 +33,7 @@ from ..sensors import (
     memory_speculative_bytes,
     memory_used_bytes_from_stats,
     merge_gpu_readings,
+    reset_cpu_tick_baseline,
 )
 from ..smc_darwin import decode_smc_value, smc_key_to_uint
 
@@ -221,6 +224,51 @@ class TestSensors(unittest.TestCase):
         for case in self.cases["smc_key_to_uint"]:
             with self.subTest(name=case["name"]):
                 self.assertEqual(case["expected"], smc_key_to_uint(case["key"]))
+
+    def test_reset_cpu_tick_baseline(self) -> None:
+        for case in self.cases["reset_cpu_tick_baseline"]:
+            with self.subTest(name=case["name"]):
+                reset_cpu_tick_baseline()
+                first = cpu_util_pct_from_system_stats(case["first_stats"])
+                second = cpu_util_pct_from_system_stats(case["second_stats"])
+                reset_cpu_tick_baseline()
+                after_reset = cpu_util_pct_from_system_stats(case["first_stats"])
+                self.assertIsNone(first)
+                self.assertAlmostEqual(case["expected_second"], second, places=4)
+                self.assertIsNone(after_reset)
+
+    def test_cpu_util_pct_from_ticks(self) -> None:
+        for case in self.cases["cpu_util_pct_from_ticks"]:
+            with self.subTest(name=case["name"]):
+                result = cpu_util_pct_from_ticks(
+                    case.get("previous_user"),
+                    case.get("previous_system"),
+                    case.get("previous_idle"),
+                    case.get("current_user"),
+                    case.get("current_system"),
+                    case.get("current_idle"),
+                )
+                expected = case["expected"]
+                if expected is None:
+                    self.assertIsNone(result)
+                else:
+                    self.assertAlmostEqual(expected, result, places=4)
+
+    def test_cpu_util_pct_from_system_stats(self) -> None:
+        for case in self.cases["cpu_util_pct_from_system_stats"]:
+            with self.subTest(name=case["name"]):
+                reset_cpu_tick_baseline()
+                results = [
+                    cpu_util_pct_from_system_stats(sample)
+                    for sample in case["samples"]
+                ]
+                expected = case["expected"]
+                self.assertEqual(len(expected), len(results))
+                for index, (want, got) in enumerate(zip(expected, results)):
+                    if want is None:
+                        self.assertIsNone(got)
+                    else:
+                        self.assertAlmostEqual(want, got, places=4)
 
     def test_memory_speculative_bytes(self) -> None:
         for case in self.cases["memory_speculative_bytes"]:

@@ -12,6 +12,9 @@ from .tray_common import (
     is_label_component_enabled,
 )
 
+# Prior host CPU tick sample for interval utilization (user, system, idle).
+_previous_cpu_ticks: Optional[tuple[float, float, float]] = None
+
 
 @dataclass(frozen=True)
 class GpuReading:
@@ -576,10 +579,7 @@ def read_sensors() -> SensorSnapshot:
         gpu_celsius = _optional_float(temps.get("gpu_avg"))
 
         sys_stats = system_stats()
-        cpu_user = _optional_float(sys_stats.get("cpu_user_pct"))
-        cpu_system = _optional_float(sys_stats.get("cpu_system_pct"))
-        if cpu_user is not None and cpu_system is not None:
-            cpu_util_pct = cpu_user + cpu_system
+        cpu_util_pct = cpu_util_pct_from_system_stats(sys_stats)
 
         gpu_stats = system_gpu_stats()
         gpu_util_pct = _optional_float(gpu_stats.get("device_utilization"))
@@ -711,6 +711,91 @@ def _darwin_perf_readers():
     from darwin_perf import system_gpu_stats, system_stats, temperatures
 
     return system_gpu_stats, system_stats, temperatures
+
+
+def reset_cpu_tick_baseline() -> None:
+    """Clear the cached CPU tick sample used for delta utilization."""
+    global _previous_cpu_ticks
+    _previous_cpu_ticks = None
+
+
+def cpu_util_pct_from_ticks(
+    previous_user: Optional[float],
+    previous_system: Optional[float],
+    previous_idle: Optional[float],
+    current_user: Optional[float],
+    current_system: Optional[float],
+    current_idle: Optional[float],
+) -> Optional[float]:
+    """Estimate recent CPU utilization from host tick counters.
+
+    Args:
+        previous_user (float | None): User (+ nice) ticks from the prior sample.
+        previous_system (float | None): System ticks from the prior sample.
+        previous_idle (float | None): Idle ticks from the prior sample.
+        current_user (float | None): User (+ nice) ticks for this sample.
+        current_system (float | None): System ticks for this sample.
+        current_idle (float | None): Idle ticks for this sample.
+
+    Returns:
+        float | None: Active (user + system) percent over the interval, or None
+            when a prior sample is missing or the tick delta is zero.
+    """
+    if (
+        previous_user is None
+        or previous_system is None
+        or previous_idle is None
+        or current_user is None
+        or current_system is None
+        or current_idle is None
+    ):
+        return None
+    delta_user = current_user - previous_user
+    delta_system = current_system - previous_system
+    delta_idle = current_idle - previous_idle
+    total = delta_user + delta_system + delta_idle
+    if total <= 0:
+        return None
+    return 100.0 * (delta_user + delta_system) / total
+
+
+def cpu_util_pct_from_system_stats(sys_stats: dict) -> Optional[float]:
+    """Compute interval CPU utilization from ``system_stats`` tick counters.
+
+    ``darwin_perf.system_stats`` exposes ``cpu_user_pct`` / ``cpu_system_pct``
+    as averages since boot. This helper diffs ``cpu_ticks_*`` across successive
+    calls so the tray matches Activity Monitor-style recent load.
+
+    Args:
+        sys_stats (dict): Mapping from ``system_stats()``, including
+            ``cpu_ticks_user``, ``cpu_ticks_system``, and ``cpu_ticks_idle``.
+
+    Returns:
+        float | None: Active CPU percent since the previous call, or None on
+            the first sample or when ticks are unavailable.
+    """
+    global _previous_cpu_ticks
+    current_user = _optional_float(sys_stats.get("cpu_ticks_user"))
+    current_system = _optional_float(sys_stats.get("cpu_ticks_system"))
+    current_idle = _optional_float(sys_stats.get("cpu_ticks_idle"))
+    previous = _previous_cpu_ticks
+    util_pct = None
+    if previous is not None:
+        util_pct = cpu_util_pct_from_ticks(
+            previous[0],
+            previous[1],
+            previous[2],
+            current_user,
+            current_system,
+            current_idle,
+        )
+    if (
+        current_user is not None
+        and current_system is not None
+        and current_idle is not None
+    ):
+        _previous_cpu_ticks = (current_user, current_system, current_idle)
+    return util_pct
 
 
 def memory_speculative_bytes(

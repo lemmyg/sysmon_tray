@@ -149,6 +149,10 @@ class _StatusItemDelegate(NSObject):
     def quitApp_(self, sender) -> None:
         self._on_quit()
 
+    def openActivityMonitor_(self, sender) -> None:
+        """Open Activity Monitor from the status item menu."""
+        _launch_activity_monitor()
+
     def showStatusMenu_(self, sender) -> None:
         """Pop up the status item menu after a delayed single click."""
         self._status_item.popUpStatusItemMenu_(self._menu)
@@ -264,6 +268,13 @@ class DarwinMenuBarLabel:
         self._fill_components_menu()
 
         menu.addItem_(NSMenuItem.separatorItem())
+        activity_monitor_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Activity Monitor",
+            "openActivityMonitor:",
+            "",
+        )
+        activity_monitor_item.setTarget_(delegate)
+        menu.addItem_(activity_monitor_item)
         about_menu = NSMenu.alloc().init()
         about_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             "About",

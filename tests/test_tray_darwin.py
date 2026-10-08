@@ -265,6 +265,19 @@ class TestTrayDarwin(unittest.TestCase):
 
         on_quit.assert_called_once_with()
 
+    @patch("sysmon_tray.tray_darwin._launch_activity_monitor")
+    def test_status_item_delegate_open_activity_monitor(
+        self,
+        mock_launch: MagicMock,
+    ) -> None:
+        delegate = _StatusItemDelegate.alloc().initWithCallbacks_(
+            _delegate_callbacks(),
+        )
+
+        delegate.openActivityMonitor_(None)
+
+        mock_launch.assert_called_once_with()
+
     def test_status_item_delegate_set_refresh_interval(self) -> None:
         for case in self.cases["status_item_delegate_set_refresh_interval"]:
             with self.subTest(name=case["name"]):

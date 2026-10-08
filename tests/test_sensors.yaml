@@ -657,3 +657,68 @@ format_memory_tooltip:
     memory_used_gb: 9.5
     memory_total_gb: null
     expected: null
+
+cpu_util_pct_from_ticks:
+  - name: busy_interval
+    previous_user: 1000
+    previous_system: 200
+    previous_idle: 8000
+    current_user: 1900
+    current_system: 300
+    current_idle: 8100
+    expected: 90.9090909091
+  - name: first_sample_missing_previous
+    previous_user: null
+    previous_system: null
+    previous_idle: null
+    current_user: 1000
+    current_system: 200
+    current_idle: 8000
+    expected: null
+  - name: zero_delta
+    previous_user: 1000
+    previous_system: 200
+    previous_idle: 8000
+    current_user: 1000
+    current_system: 200
+    current_idle: 8000
+    expected: null
+  - name: missing_current_idle
+    previous_user: 1000
+    previous_system: 200
+    previous_idle: 8000
+    current_user: 1100
+    current_system: 220
+    current_idle: null
+    expected: null
+
+cpu_util_pct_from_system_stats:
+  - name: two_samples
+    samples:
+      - cpu_ticks_user: 1000
+        cpu_ticks_system: 200
+        cpu_ticks_idle: 8000
+      - cpu_ticks_user: 1900
+        cpu_ticks_system: 300
+        cpu_ticks_idle: 8100
+    expected:
+      - null
+      - 90.9090909091
+  - name: missing_ticks
+    samples:
+      - cpu_user_pct: 9.0
+        cpu_system_pct: 1.0
+    expected:
+      - null
+
+reset_cpu_tick_baseline:
+  - name: clears_cached_sample
+    first_stats:
+      cpu_ticks_user: 1000
+      cpu_ticks_system: 200
+      cpu_ticks_idle: 8000
+    second_stats:
+      cpu_ticks_user: 1900
+      cpu_ticks_system: 300
+      cpu_ticks_idle: 8100
+    expected_second: 90.9090909091
